@@ -97,43 +97,68 @@ export class SerialTransport {
   }
 }
 
-// STM32 进入 Bootloader 物理时序（兼容 CH340N/C 经典三极管 和 CH340X 直连）
-export async function enterBootloader(transport, delay, mode) {
-    if (mode === "none") return;
+function invertChoice(choice) {
+  return choice.replace("true", "TMP").replace("false", "true").replace("TMP", "false");
+}
 
-    // true 表示软件上的低电平（物理0V），false 表示软件高电平（物理3.3V）
-    if (mode === "dtr-high-rts-low") {
-        // 第一步：BOOT0拔高(DTR=False)，压死复位(RTS=True)
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: true });
-        await delay(100);
-        // 第二步：释放复位(RTS=False)，此时BOOT0依然保持高电平以进入SystemMemory
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await delay(50);
-    }
-    else if (mode === "dtr-low-rts-high") {
-        await transport.setSignals({ dataTerminalReady: true, requestToSend: false });
-        await delay(100);
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await delay(50);
-    }
+function applyChoice(signals, choice) {
+  const [name, rawValue] = choice.split("-");
+  const value = rawValue === "true";
+  if (name === "dtr") signals.dataTerminalReady = value;
+  if (name === "rts") signals.requestToSend = value;
+}
+
+function normalizeResetConfig(modeOrConfig) {
+  if (!modeOrConfig || modeOrConfig === "dtr-high-rts-low") {
+    return { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-true" };
+  }
+  if (modeOrConfig === "dtr-low-rts-high") {
+    return { boot0High: "dtr-true", boot0Low: "dtr-false", resetAssert: "rts-true" };
+  }
+  if (modeOrConfig === "none") return null;
+  if (typeof modeOrConfig === "object") {
+    const boot0High = modeOrConfig.boot0High ?? "dtr-false";
+    return {
+      boot0High,
+      boot0Low: modeOrConfig.boot0Low ?? invertChoice(boot0High),
+      resetAssert: modeOrConfig.resetAssert ?? "rts-true",
+    };
+  }
+  return { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-true" };
+}
+
+// STM32 进入 Bootloader 物理时序（兼容 CH340C 经典三极管和 CH340X 直连，并允许自定义映射）
+export async function enterBootloader(transport, delay, modeOrConfig) {
+  const config = normalizeResetConfig(modeOrConfig);
+  if (!config) return;
+
+  const hold = { dataTerminalReady: false, requestToSend: false };
+  applyChoice(hold, config.boot0High);
+  applyChoice(hold, config.resetAssert);
+  await transport.setSignals(hold);
+  await delay(120);
+
+  const releaseReset = { dataTerminalReady: false, requestToSend: false };
+  applyChoice(releaseReset, config.boot0High);
+  await transport.setSignals(releaseReset);
+  await delay(80);
 }
 
 // 物理复位并运行用户程序
-export async function resetToRun(transport, delay, mode) {
-    if (mode === "none") return;
+export async function resetToRun(transport, delay, modeOrConfig) {
+  const config = normalizeResetConfig(modeOrConfig);
+  if (!config) return;
 
-    if (mode === "dtr-high-rts-low") {
-        // 第一步：BOOT0拉低(DTR=True)，压死复位(RTS=True)
-        await transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await delay(100);
-        // 第二步：彻底释放，程序起跑
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await delay(50);
-    }
-    else if (mode === "dtr-low-rts-high") {
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: true });
-        await delay(100);
-        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await delay(50);
-    }
+  const hold = { dataTerminalReady: false, requestToSend: false };
+  applyChoice(hold, config.boot0Low);
+  applyChoice(hold, config.resetAssert);
+  await transport.setSignals(hold);
+  await delay(120);
+
+  const releaseReset = { dataTerminalReady: false, requestToSend: false };
+  applyChoice(releaseReset, config.boot0Low);
+  await transport.setSignals(releaseReset);
+  await delay(80);
+
+  await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
 }

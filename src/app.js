@@ -9,12 +9,23 @@ const i18n = {
   zh: {
     eyebrow: "Web Serial / STM32 UART ISP",
     appTitle: "Web FlyMcu",
+    settingsTitle: "烧写设置",
+    target: "目标协议",
     selectPort: "请选择串口",
     chooseFirmware: "点击选择固件文件 (.bin)",
     noFile: "未加载文件",
+    resetLogicTitle: "DTR/RTS 复位模式",
     resetMode1: "DTR的高电平复位，RTS低电平进BootLoader (推荐/CH340X)",
     resetMode2: "DTR的低电平复位，RTS高电平进BootLoader",
+    resetModeCustom: "自定义 DTR/RTS 映射",
     resetModeNone: "不使用控制线 (手动按键进Boot)",
+    advancedSettings: "高级设置...",
+    flashBase: "Flash 起始地址 (Hex)",
+    packetBytes: "写入分包大小 (Bytes)",
+    parity: "奇偶校验位",
+    timeout: "读取超时 (ms)",
+    boot0: "BOOT0 高电平信号",
+    reset: "RESET 触发信号",
     doErase: "烧录前全片擦除",
     doVerify: "烧录后校验数据",
     doRun: "烧录成功后复位并运行程序",
@@ -23,6 +34,7 @@ const i18n = {
     openPort: "开启串口",
     closePort: "关闭串口",
     clear: "清空日志",
+    executionLog: "执行日志",
     stepPort: "打开串口连接",
     stepBoot: "进入 Bootloader 模式",
     stepSync: "握手同步并读取芯片信息",
@@ -30,18 +42,34 @@ const i18n = {
     stepWrite: "分块写入固件数据",
     stepVerify: "读回固件进行一致性校验",
     stepRun: "复位并启动用户程序",
+    manualConsole: "调试控制台",
+    forceBoot: "强驱进Boot",
+    forceRun: "强驱复位运行",
+    sendHex: "发送 HEX",
+    readByte: "读 1 字节",
     serialOk: "Web Serial API (就绪)",
     serialNo: "Web Serial 浏览器不支持该特性",
   },
   en: {
     eyebrow: "Web Serial / STM32 UART ISP",
     appTitle: "Web FlyMcu",
+    settingsTitle: "Programming Settings",
+    target: "Target protocol",
     selectPort: "Select Serial Port",
     chooseFirmware: "Click to select firmware (.bin)",
     noFile: "No file loaded",
+    resetLogicTitle: "DTR/RTS reset mode",
     resetMode1: "DTR high reset, RTS low bootloader (CH340X)",
     resetMode2: "DTR low reset, RTS high bootloader",
+    resetModeCustom: "Custom DTR/RTS mapping",
     resetModeNone: "No control flow (Manual boot)",
+    advancedSettings: "Advanced settings...",
+    flashBase: "Flash base address (Hex)",
+    packetBytes: "Write packet size (Bytes)",
+    parity: "Parity",
+    timeout: "Read timeout (ms)",
+    boot0: "BOOT0 high signal",
+    reset: "RESET assert signal",
     doErase: "Mass erase before writing",
     doVerify: "Verify data after writing",
     doRun: "Reset and run program upon success",
@@ -50,6 +78,7 @@ const i18n = {
     openPort: "Open Port",
     closePort: "Close Port",
     clear: "Clear Log",
+    executionLog: "Execution Log",
     stepPort: "Open serial port connection",
     stepBoot: "Enter Bootloader mode",
     stepSync: "Handshake sync and read chip info",
@@ -57,6 +86,11 @@ const i18n = {
     stepWrite: "Write firmware data blocks",
     stepVerify: "Verify written data consistency",
     stepRun: "Reset and start user program",
+    manualConsole: "Debug Console",
+    forceBoot: "Force Boot",
+    forceRun: "Force Run",
+    sendHex: "Send HEX",
+    readByte: "Read Byte",
     serialOk: "Web Serial API (Ready)",
     serialNo: "Web Serial not supported in this browser",
   },
@@ -76,12 +110,15 @@ const els = {
   languageSelect: $("languageSelect"),
   supportStatus: $("supportStatus"),
   portName: $("portName"),
+  targetProfile: $("targetProfile"),
   baudRate: $("baudRate"),
   resetLogic: $("resetLogic"),
   flashBase: $("flashBase"),
   packetSize: $("packetSize"),
   parity: $("parity"),
   timeoutMs: $("timeoutMs"),
+  boot0High: $("boot0High"),
+  resetAssert: $("resetAssert"),
   firmwareInput: $("firmwareInput"),
   firmwareName: $("firmwareName"),
   firmwareSize: $("firmwareSize"),
@@ -165,13 +202,22 @@ function parseNumber(value, label) {
 }
 
 function options() {
+  const boot0High = els.boot0High.value;
   return {
+    target: els.targetProfile.value,
     baudRate: Number.parseInt(els.baudRate.value, 10),
     timeout: Number.parseInt(els.timeoutMs.value, 10),
     parity: els.parity.value,
     flashBase: parseNumber(els.flashBase.value, "flash base"),
     packetSize: Number.parseInt(els.packetSize.value, 10),
     resetLogic: els.resetLogic.value,
+    resetConfig: els.resetLogic.value === "custom"
+      ? {
+          boot0High,
+          boot0Low: boot0High.replace("true", "TMP").replace("false", "true").replace("TMP", "false"),
+          resetAssert: els.resetAssert.value,
+        }
+      : els.resetLogic.value,
     doErase: els.doErase.checked,
     doVerify: els.doVerify.checked,
     doRun: els.doRun.checked,
@@ -195,7 +241,7 @@ function updateUi() {
   els.connectBtn.disabled = !supported || state.connected;
   els.disconnectBtn.disabled = !state.connected;
 
-  const canFlash = state.connected && state.firmware;
+  const canFlash = state.connected && state.firmware && els.targetProfile.value === "stm32-uart";
   els.fullProcessBtn.disabled = !canFlash;
 
   // 调试面板更新
@@ -273,6 +319,10 @@ async function disconnect() {
 async function runAutoProgram() {
     const config = options();
     if (!state.connected || !state.bootloader || !state.firmware) return;
+    if (config.target !== "stm32-uart") {
+        log("当前自动烧录流程仅实现 STM32 UART ISP。其他目标请使用调试控制台或后续协议适配器。", "warn");
+        return;
+    }
 
     // UI 锁定
     els.fullProcessBtn.disabled = true;
@@ -287,7 +337,7 @@ async function runAutoProgram() {
         // 第二步: 通过 DTR/RTS 唤起 Bootloader
         setStep("boot", "active");
         log(`1. 正在复位单片机并进入 ISP 模式 (模式: ${config.resetLogic})...`);
-        await enterBootloader(state.transport, delay, config.resetLogic);
+        await enterBootloader(state.transport, delay, config.resetConfig);
         setStep("boot", "done");
 
         // 第三步: 并行测试波特率 & 握手
@@ -319,7 +369,7 @@ async function runAutoProgram() {
                     log(`==> 保护已解除，芯片已自我重置。需重新建立握手接管。`);
 
                     log(`[*] 再次进入 Bootloader 模式...`);
-                    await enterBootloader(state.transport, delay, config.resetLogic);
+                    await enterBootloader(state.transport, delay, config.resetConfig);
                     await state.transport.flushReadBuffer();
                     await state.bootloader.sync();
                     log(`[*] 二次握手同步成功！接管完成。`);
@@ -357,7 +407,7 @@ async function runAutoProgram() {
         if (config.doRun) {
             setStep("run", "active");
             log(`6. 正在拉低 RESET 脚，复位并自动启动用户程序程序...`);
-            await resetToRun(state.transport, delay, config.resetLogic);
+            await resetToRun(state.transport, delay, config.resetConfig);
             log(`==> 操作完毕！请观察板子是否正常运行。`);
         } else {
             log(`6. (烧写完毕，程序停留在 Bootloader 等待手动复位)`);
@@ -382,6 +432,7 @@ els.languageSelect.addEventListener("change", () => {
     applyLanguage();
 });
 
+els.targetProfile.addEventListener("change", updateUi);
 els.selectPortBtn.addEventListener("click", requestPort);
 els.connectBtn.addEventListener("click", connect);
 els.disconnectBtn.addEventListener("click", disconnect);
@@ -414,13 +465,33 @@ els.firmwareInput.addEventListener("change", async () => {
 // ==== 调试控制台快捷动作 ====
 els.enterBootBtn.addEventListener("click", async () => {
     log(`调试指令：尝试强制按配置 ${options().resetLogic} 拉线进Boot...`);
-    await enterBootloader(state.transport, delay, options().resetLogic);
+    await enterBootloader(state.transport, delay, options().resetConfig);
     log(`尝试完成，若电路正常芯片现已进入ISP等待。`);
 });
 els.resetRunBtn.addEventListener("click", async () => {
     log(`调试指令：尝试强制复位跑起用户程序...`);
-    await resetToRun(state.transport, delay, options().resetLogic);
+    await resetToRun(state.transport, delay, options().resetConfig);
     log(`已发送复位放行信号。`);
+});
+
+function parseHex(input) {
+  const clean = input.replace(/0x/gi, " ").replace(/[^0-9a-fA-F]/g, " ").trim();
+  if (!clean) return [];
+  return clean.split(/\s+/).map((part) => {
+    const value = Number.parseInt(part, 16);
+    if (!Number.isFinite(value) || value < 0 || value > 255) throw new Error(`Invalid byte: ${part}`);
+    return value;
+  });
+}
+
+els.sendHexBtn.addEventListener("click", async () => {
+    const bytes = parseHex(els.hexInput.value);
+    await state.transport.write(bytes);
+    log(`TX ${bytes.map((byte) => toHex(byte)).join(" ")}`);
+});
+els.readByteBtn.addEventListener("click", async () => {
+    const byte = (await state.transport.readExact(1, options().timeout))[0];
+    log(`RX ${toHex(byte)}`);
 });
 
 // Raw DTR/RTS overrides: True is 0V (Low), False is 3.3V (High)

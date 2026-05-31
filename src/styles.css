@@ -161,13 +161,18 @@ select#languageSelect {
   color: var(--ok);
 }
 
-#baudRate {
+#baudRate,
+#targetProfile {
   width: 140px;
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--text);
   border-radius: 6px;
   padding: 0 12px;
+}
+
+#targetProfile {
+  width: 180px;
 }
 
 .file-drop {
