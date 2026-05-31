@@ -5,40 +5,73 @@ export class SerialTransport {
     this.reader = null;
     this.writer = null;
     this.readBuffer = [];
+    this._readingPromise = null;
+    this._keepReading = false;
   }
 
   async open(options) {
-    await this.port.open(options);
+    await this.port.open({ bufferSize: 8192, ...options });
     this.writer = this.port.writable.getWriter();
-    this.reader = this.port.readable.getReader();
+    // Use a background reading loop to keep buffer flowing
+    this._keepReading = true;
+    this._readingPromise = this._readLoop();
+  }
+
+  async _readLoop() {
+    while (this.port.readable && this._keepReading) {
+      this.reader = this.port.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await this.reader.read();
+          if (done) break;
+          if (value) {
+            this.readBuffer.push(...value);
+          }
+        }
+      } catch (error) {
+        if (this._keepReading) {
+          this.log(`Serial read error: ${error.message}`);
+        }
+      } finally {
+        this.reader.releaseLock();
+      }
+    }
   }
 
   async close() {
+    this._keepReading = false;
+
+    // Stop the reader
     try {
       if (this.reader) {
         await this.reader.cancel();
-        this.reader.releaseLock();
       }
-    } catch (error) {
-      this.log(`Reader close warning: ${error.message}`);
+    } catch (_) {}
+
+    if (this._readingPromise) {
+      await this._readingPromise.catch(() => {});
     }
+
     try {
       if (this.writer) {
+        await this.writer.close();
         this.writer.releaseLock();
       }
     } catch (error) {
-      this.log(`Writer close warning: ${error.message}`);
+        this.log(`Writer close warning: ${error.message}`);
     }
+
     if (this.port?.readable || this.port?.writable) {
       await this.port.close();
     }
+
     this.reader = null;
     this.writer = null;
     this.readBuffer = [];
   }
 
   async write(bytes) {
-    if (!this.writer) throw new Error("Serial writer is not open");
+    if (!this.writer) throw new Error("串口未打开");
     await this.writer.write(new Uint8Array(bytes));
   }
 
@@ -47,17 +80,16 @@ export class SerialTransport {
     while (this.readBuffer.length < length) {
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
-        throw new Error(`Read timeout after ${timeoutMs} ms`);
+        throw new Error(`读取超时 (等待 ${length} 字节, 收到 ${this.readBuffer.length} 字节)`);
       }
-      const read = this.reader.read();
-      const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`Read timeout after ${timeoutMs} ms`)), remaining);
-      });
-      const { value, done } = await Promise.race([read, timeout]);
-      if (done) throw new Error("Serial stream closed");
-      this.readBuffer.push(...value);
+      // wait a tiny bit to let the background reader push data
+      await new Promise(r => setTimeout(r, 10));
     }
     return new Uint8Array(this.readBuffer.splice(0, length));
+  }
+
+  async flushReadBuffer() {
+      this.readBuffer = [];
   }
 
   async setSignals(signals) {
@@ -65,38 +97,43 @@ export class SerialTransport {
   }
 }
 
-function applyChoice(signals, choice) {
-  const [name, rawValue] = choice.split("-");
-  const value = rawValue === "true";
-  if (name === "dtr") signals.dataTerminalReady = value;
-  if (name === "rts") signals.requestToSend = value;
+// STM32 进入 Bootloader 物理时序（兼容 CH340N/C 经典三极管 和 CH340X 直连）
+export async function enterBootloader(transport, delay, mode) {
+    if (mode === "none") return;
+
+    // true 表示软件上的低电平（物理0V），false 表示软件高电平（物理3.3V）
+    if (mode === "dtr-high-rts-low") {
+        // 第一步：BOOT0拔高(DTR=False)，压死复位(RTS=True)
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: true });
+        await delay(100);
+        // 第二步：释放复位(RTS=False)，此时BOOT0依然保持高电平以进入SystemMemory
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await delay(50);
+    }
+    else if (mode === "dtr-low-rts-high") {
+        await transport.setSignals({ dataTerminalReady: true, requestToSend: false });
+        await delay(100);
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await delay(50);
+    }
 }
 
-export async function enterBootloader(transport, delay, config = {}) {
-  const boot0High = config.boot0High ?? "dtr-false";
-  const resetAssert = config.resetAssert ?? "rts-true";
-  const hold = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(hold, boot0High);
-  applyChoice(hold, resetAssert);
-  await transport.setSignals(hold);
-  await delay(120);
-  const release = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(release, boot0High);
-  await transport.setSignals(release);
-  await delay(80);
-}
+// 物理复位并运行用户程序
+export async function resetToRun(transport, delay, mode) {
+    if (mode === "none") return;
 
-export async function resetToRun(transport, delay, config = {}) {
-  const boot0Low = config.boot0Low ?? "dtr-true";
-  const resetAssert = config.resetAssert ?? "rts-true";
-  const hold = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(hold, boot0Low);
-  applyChoice(hold, resetAssert);
-  await transport.setSignals(hold);
-  await delay(120);
-  const releaseReset = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(releaseReset, boot0Low);
-  await transport.setSignals(releaseReset);
-  await delay(80);
-  await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+    if (mode === "dtr-high-rts-low") {
+        // 第一步：BOOT0拉低(DTR=True)，压死复位(RTS=True)
+        await transport.setSignals({ dataTerminalReady: true, requestToSend: true });
+        await delay(100);
+        // 第二步：彻底释放，程序起跑
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await delay(50);
+    }
+    else if (mode === "dtr-low-rts-high") {
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: true });
+        await delay(100);
+        await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await delay(50);
+    }
 }

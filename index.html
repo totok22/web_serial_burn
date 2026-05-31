@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Web MCU Burner</title>
+    <title>Web FlyMcu</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101113'/%3E%3Cpath d='M15 34h34M20 22h24M20 46h24' stroke='%23ffb000' stroke-width='6' stroke-linecap='square'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
@@ -12,148 +12,144 @@
       <section class="workspace" aria-label="Web MCU serial flashing tool">
         <header class="topbar">
           <div>
-            <p class="eyebrow" data-i18n="eyebrow">Web Serial / Multi-target ISP</p>
-            <h1 data-i18n="appTitle">Web MCU Burner</h1>
+            <p class="eyebrow" data-i18n="eyebrow">Web Serial / STM32 UART ISP</p>
+            <h1 data-i18n="appTitle">Web FlyMcu</h1>
           </div>
           <div class="top-actions">
             <select id="languageSelect" aria-label="Language">
               <option value="zh">中文</option>
               <option value="en">English</option>
             </select>
-            <div class="status" id="supportStatus">Checking Web Serial...</div>
+            <div class="status" id="supportStatus">检查 Web Serial...</div>
           </div>
         </header>
 
         <section class="control-grid">
           <div class="panel primary-panel">
-            <h2 data-i18n="connection">Connection</h2>
-            <div class="form-grid">
-              <label>
-                <span data-i18n="target">Target</span>
-                <select id="targetProfile">
-                  <option value="stm32-uart">STM32 UART ISP</option>
-                  <option value="generic-serial">Generic serial/manual</option>
-                </select>
-              </label>
-              <label>
-                <span data-i18n="baudRate">Baud rate</span>
-                <input id="baudRate" type="number" min="1200" step="1200" value="115200" />
-              </label>
-              <label>
-                <span data-i18n="timeout">Read timeout ms</span>
-                <input id="timeoutMs" type="number" min="100" step="100" value="2000" />
-              </label>
-              <label>
-                <span data-i18n="parity">Parity</span>
-                <select id="parity">
-                  <option value="even">Even</option>
-                  <option value="none">None</option>
-                  <option value="odd">Odd</option>
-                </select>
-              </label>
-              <label>
-                <span data-i18n="flashBase">Flash base</span>
-                <input id="flashBase" value="0x08000000" spellcheck="false" />
-              </label>
-              <label>
-                <span data-i18n="packetBytes">Packet bytes</span>
-                <input id="packetSize" type="number" min="4" max="256" step="4" value="256" />
-              </label>
-              <label>
-                <span data-i18n="boot0">BOOT0 high signal</span>
-                <select id="boot0High">
-                  <option value="dtr-false">DTR false</option>
-                  <option value="dtr-true">DTR true</option>
-                  <option value="rts-false">RTS false</option>
-                  <option value="rts-true">RTS true</option>
-                </select>
-              </label>
-              <label>
-                <span data-i18n="reset">RESET assert signal</span>
-                <select id="resetAssert">
-                  <option value="rts-true">RTS true</option>
-                  <option value="rts-false">RTS false</option>
-                  <option value="dtr-true">DTR true</option>
-                  <option value="dtr-false">DTR false</option>
-                </select>
+            <h2 data-i18n="settingsTitle">烧写设置</h2>
+
+            <div class="port-section">
+              <button id="selectPortBtn" class="port-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
+                <span id="portName" data-i18n="selectPort">请选择串口</span>
+              </button>
+              <select id="baudRate" title="波特率" aria-label="Baud rate">
+                <option value="9600">9600</option>
+                <option value="57600">57600</option>
+                <option value="115200" selected>115200 (默认)</option>
+                <option value="256000">256000</option>
+                <option value="512000">512000</option>
+              </select>
+            </div>
+
+            <div class="file-section">
+              <label class="file-drop">
+                <input id="firmwareInput" type="file" accept=".bin,.hex,application/octet-stream,text/plain" />
+                <div class="file-drop-content">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                  <span id="firmwareName" data-i18n="chooseFirmware">点击选择固件文件 (.bin)</span>
+                  <span id="firmwareSize" class="file-meta" data-i18n="noFile">未加载文件</span>
+                </div>
               </label>
             </div>
-            <div class="actions">
-              <button id="connectBtn" class="strong" data-i18n="connect">Connect</button>
-              <button id="disconnectBtn" disabled data-i18n="disconnect">Disconnect</button>
-              <button id="bootBtn" disabled data-i18n="enterBoot">Enter Bootloader</button>
-              <button id="runBtn" disabled data-i18n="resetRun">Reset Run</button>
+
+            <div class="options-section">
+              <label class="reset-logic-label">
+                <span data-i18n="resetLogicTitle">DTR/RTS 复位模式</span>
+                <select id="resetLogic">
+                  <option value="dtr-high-rts-low" data-i18n="resetMode1">DTR的高电平复位，RTS低电平进BootLoader (推荐/CH340X)</option>
+                  <option value="dtr-low-rts-high" data-i18n="resetMode2">DTR的低电平复位，RTS高电平进BootLoader</option>
+                  <option value="none" data-i18n="resetModeNone">不使用控制线 (手动按键进Boot)</option>
+                </select>
+              </label>
+
+              <div class="option-list">
+                <label><input id="doErase" type="checkbox" checked /> <span data-i18n="doErase">烧录前全片擦除</span></label>
+                <label><input id="doVerify" type="checkbox" checked /> <span data-i18n="doVerify">烧录后校验数据</span></label>
+                <label><input id="doRun" type="checkbox" checked /> <span data-i18n="doRun">烧录成功后复位并运行程序</span></label>
+                <label><input id="doUnlock" type="checkbox" checked /> <span data-i18n="doUnlock">若发生读保护，自动解除保护 (将擦除全片)</span></label>
+              </div>
+            </div>
+
+            <details class="advanced-settings">
+              <summary data-i18n="advancedSettings">高级设置...</summary>
+              <div class="form-grid">
+                <label>
+                  <span data-i18n="flashBase">Flash 起始地址 (Hex)</span>
+                  <input id="flashBase" value="0x08000000" spellcheck="false" />
+                </label>
+                <label>
+                  <span data-i18n="packetBytes">写入分包大小 (Bytes)</span>
+                  <input id="packetSize" type="number" min="4" max="256" step="4" value="256" />
+                </label>
+                <label>
+                  <span data-i18n="parity">奇偶校验位</span>
+                  <select id="parity">
+                    <option value="even">偶校验 Even (STM32协议必须)</option>
+                    <option value="none">无 None</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="timeout">读取超时 (ms)</span>
+                  <input id="timeoutMs" type="number" min="100" step="100" value="2000" />
+                </label>
+              </div>
+            </details>
+
+            <div class="start-action">
+              <button id="fullProcessBtn" disabled class="strong massive">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span data-i18n="startProgram">开始编程</span>
+              </button>
+            </div>
+            <div class="meter" aria-label="programming progress">
+              <div id="progressBar"></div>
             </div>
           </div>
 
-          <div class="panel">
-            <h2 data-i18n="firmware">Firmware</h2>
-            <label class="file-drop">
-              <input id="firmwareInput" type="file" accept=".bin,.hex,application/octet-stream,text/plain" />
-              <span id="firmwareName" data-i18n="chooseFirmware">Choose firmware</span>
-            </label>
-            <div class="firmware-meta">
-              <span id="firmwareSize" data-i18n="noFile">No file loaded</span>
-              <span id="chipId">PID: --</span>
+          <div class="panel side-panel">
+            <h2 data-i18n="executionLog">执行日志</h2>
+            <div class="steps-container">
+              <ul class="steps" id="steps">
+                <li data-step="port" data-i18n="stepPort">打开串口连接</li>
+                <li data-step="boot" data-i18n="stepBoot">进入 Bootloader 模式</li>
+                <li data-step="sync" data-i18n="stepSync">握手同步并读取芯片信息</li>
+                <li data-step="erase" data-i18n="stepErase">擦除芯片 Flash</li>
+                <li data-step="write" data-i18n="stepWrite">分块写入固件数据</li>
+                <li data-step="verify" data-i18n="stepVerify">读回固件进行一致性校验</li>
+                <li data-step="run" data-i18n="stepRun">复位并启动用户程序</li>
+              </ul>
             </div>
-            <div class="option-list">
-              <label><input id="doErase" type="checkbox" checked /> <span data-i18n="doErase">Mass erase before write</span></label>
-              <label><input id="doVerify" type="checkbox" checked /> <span data-i18n="doVerify">Verify after write</span></label>
-              <label><input id="doRun" type="checkbox" checked /> <span data-i18n="doRun">Reset to run after success</span></label>
-              <label><input id="doUnlock" type="checkbox" checked /> <span data-i18n="doUnlock">Unlock if protected</span></label>
-            </div>
-            <div class="actions compact">
-              <button id="syncBtn" disabled data-i18n="sync">Sync</button>
-              <button id="pidBtn" disabled data-i18n="readPid">Read PID</button>
-              <button id="eraseBtn" disabled data-i18n="erase">Erase</button>
-              <button id="flashBtn" disabled class="strong" data-i18n="flashVerify">Flash + Verify</button>
+
+            <pre id="log" aria-live="polite"></pre>
+
+            <div class="actions manual-actions">
+              <button id="connectBtn" class="small-btn" data-i18n="openPort">开启串口</button>
+              <button id="disconnectBtn" disabled class="small-btn" data-i18n="closePort">关闭串口</button>
+              <button id="clearLogBtn" class="small-btn text-muted" data-i18n="clear">清空日志</button>
             </div>
           </div>
         </section>
 
-        <section class="panel sequence-panel">
-          <div class="sequence-head">
-            <h2 data-i18n="process">Process</h2>
-            <button id="fullProcessBtn" disabled class="strong" data-i18n="autoProgram">Auto Program</button>
-          </div>
-          <div class="meter" aria-label="programming progress">
-            <div id="progressBar"></div>
-          </div>
-          <ol class="steps" id="steps">
-            <li data-step="connect" data-i18n="stepConnect">Connect serial port</li>
-            <li data-step="boot" data-i18n="stepBoot">Enter bootloader</li>
-            <li data-step="sync" data-i18n="stepSync">Sync and inspect commands</li>
-            <li data-step="erase" data-i18n="stepErase">Erase flash</li>
-            <li data-step="write" data-i18n="stepWrite">Write firmware blocks</li>
-            <li data-step="verify" data-i18n="stepVerify">Read back and compare</li>
-            <li data-step="run" data-i18n="stepRun">Reset into user program</li>
-          </ol>
-        </section>
-
-        <section class="panel manual-panel">
-          <div class="sequence-head">
-            <h2 data-i18n="manual">Manual Console</h2>
+        <details class="expert-console">
+            <summary data-i18n="manualConsole">调试控制台</summary>
+            <div class="panel manual-panel">
             <div class="actions inline">
-              <button id="dtrLowBtn" disabled>DTR 0</button>
-              <button id="dtrHighBtn" disabled>DTR 1</button>
-              <button id="rtsLowBtn" disabled>RTS 0</button>
-              <button id="rtsHighBtn" disabled>RTS 1</button>
+                <button id="enterBootBtn" disabled data-i18n="forceBoot">强驱进Boot</button>
+                <button id="resetRunBtn" disabled data-i18n="forceRun">强驱复位运行</button>
+                <div class="divider"></div>
+                <button id="dtrLowBtn" disabled>DTR=0 (True)</button>
+                <button id="dtrHighBtn" disabled>DTR=1 (False)</button>
+                <button id="rtsLowBtn" disabled>RTS=0 (True)</button>
+                <button id="rtsHighBtn" disabled>RTS=1 (False)</button>
             </div>
-          </div>
-          <div class="manual-send">
-            <input id="hexInput" placeholder="7F or 31 CE" spellcheck="false" />
-            <button id="sendHexBtn" disabled data-i18n="sendHex">Send HEX</button>
-            <button id="readByteBtn" disabled data-i18n="readByte">Read Byte</button>
-          </div>
-        </section>
-
-        <section class="panel log-panel">
-          <div class="sequence-head">
-            <h2 data-i18n="log">Log</h2>
-            <button id="clearLogBtn" data-i18n="clear">Clear</button>
-          </div>
-          <pre id="log" aria-live="polite"></pre>
-        </section>
+            <div class="manual-send">
+                <input id="hexInput" placeholder="7F or 31 CE" spellcheck="false" />
+                <button id="sendHexBtn" disabled data-i18n="sendHex">发送 HEX</button>
+                <button id="readByteBtn" disabled data-i18n="readByte">读 1 字节</button>
+            </div>
+            </div>
+        </details>
       </section>
     </main>
 
