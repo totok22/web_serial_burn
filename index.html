@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web MCU Burner</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101113'/%3E%3Cpath d='M15 34h34M20 22h24M20 46h24' stroke='%23ffb000' stroke-width='6' stroke-linecap='square'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace" aria-label="Web MCU serial flashing tool">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" data-i18n="eyebrow">Web Serial / Multi-target ISP</p>
+            <h1 data-i18n="appTitle">Web MCU Burner</h1>
+          </div>
+          <div class="top-actions">
+            <select id="languageSelect" aria-label="Language">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select>
+            <div class="status" id="supportStatus">Checking Web Serial...</div>
+          </div>
+        </header>
+
+        <section class="control-grid">
+          <div class="panel primary-panel">
+            <h2 data-i18n="connection">Connection</h2>
+            <div class="form-grid">
+              <label>
+                <span data-i18n="target">Target</span>
+                <select id="targetProfile">
+                  <option value="stm32-uart">STM32 UART ISP</option>
+                  <option value="generic-serial">Generic serial/manual</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="baudRate">Baud rate</span>
+                <input id="baudRate" type="number" min="1200" step="1200" value="115200" />
+              </label>
+              <label>
+                <span data-i18n="timeout">Read timeout ms</span>
+                <input id="timeoutMs" type="number" min="100" step="100" value="2000" />
+              </label>
+              <label>
+                <span data-i18n="parity">Parity</span>
+                <select id="parity">
+                  <option value="even">Even</option>
+                  <option value="none">None</option>
+                  <option value="odd">Odd</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="flashBase">Flash base</span>
+                <input id="flashBase" value="0x08000000" spellcheck="false" />
+              </label>
+              <label>
+                <span data-i18n="packetBytes">Packet bytes</span>
+                <input id="packetSize" type="number" min="4" max="256" step="4" value="256" />
+              </label>
+              <label>
+                <span data-i18n="boot0">BOOT0 high signal</span>
+                <select id="boot0High">
+                  <option value="dtr-false">DTR false</option>
+                  <option value="dtr-true">DTR true</option>
+                  <option value="rts-false">RTS false</option>
+                  <option value="rts-true">RTS true</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="reset">RESET assert signal</span>
+                <select id="resetAssert">
+                  <option value="rts-true">RTS true</option>
+                  <option value="rts-false">RTS false</option>
+                  <option value="dtr-true">DTR true</option>
+                  <option value="dtr-false">DTR false</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions">
+              <button id="connectBtn" class="strong" data-i18n="connect">Connect</button>
+              <button id="disconnectBtn" disabled data-i18n="disconnect">Disconnect</button>
+              <button id="bootBtn" disabled data-i18n="enterBoot">Enter Bootloader</button>
+              <button id="runBtn" disabled data-i18n="resetRun">Reset Run</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2 data-i18n="firmware">Firmware</h2>
+            <label class="file-drop">
+              <input id="firmwareInput" type="file" accept=".bin,.hex,application/octet-stream,text/plain" />
+              <span id="firmwareName" data-i18n="chooseFirmware">Choose firmware</span>
+            </label>
+            <div class="firmware-meta">
+              <span id="firmwareSize" data-i18n="noFile">No file loaded</span>
+              <span id="chipId">PID: --</span>
+            </div>
+            <div class="option-list">
+              <label><input id="doErase" type="checkbox" checked /> <span data-i18n="doErase">Mass erase before write</span></label>
+              <label><input id="doVerify" type="checkbox" checked /> <span data-i18n="doVerify">Verify after write</span></label>
+              <label><input id="doRun" type="checkbox" checked /> <span data-i18n="doRun">Reset to run after success</span></label>
+              <label><input id="doUnlock" type="checkbox" checked /> <span data-i18n="doUnlock">Unlock if protected</span></label>
+            </div>
+            <div class="actions compact">
+              <button id="syncBtn" disabled data-i18n="sync">Sync</button>
+              <button id="pidBtn" disabled data-i18n="readPid">Read PID</button>
+              <button id="eraseBtn" disabled data-i18n="erase">Erase</button>
+              <button id="flashBtn" disabled class="strong" data-i18n="flashVerify">Flash + Verify</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel sequence-panel">
+          <div class="sequence-head">
+            <h2 data-i18n="process">Process</h2>
+            <button id="fullProcessBtn" disabled class="strong" data-i18n="autoProgram">Auto Program</button>
+          </div>
+          <div class="meter" aria-label="programming progress">
+            <div id="progressBar"></div>
+          </div>
+          <ol class="steps" id="steps">
+            <li data-step="connect" data-i18n="stepConnect">Connect serial port</li>
+            <li data-step="boot" data-i18n="stepBoot">Enter bootloader</li>
+            <li data-step="sync" data-i18n="stepSync">Sync and inspect commands</li>
+            <li data-step="erase" data-i18n="stepErase">Erase flash</li>
+            <li data-step="write" data-i18n="stepWrite">Write firmware blocks</li>
+            <li data-step="verify" data-i18n="stepVerify">Read back and compare</li>
+            <li data-step="run" data-i18n="stepRun">Reset into user program</li>
+          </ol>
+        </section>
+
+        <section class="panel manual-panel">
+          <div class="sequence-head">
+            <h2 data-i18n="manual">Manual Console</h2>
+            <div class="actions inline">
+              <button id="dtrLowBtn" disabled>DTR 0</button>
+              <button id="dtrHighBtn" disabled>DTR 1</button>
+              <button id="rtsLowBtn" disabled>RTS 0</button>
+              <button id="rtsHighBtn" disabled>RTS 1</button>
+            </div>
+          </div>
+          <div class="manual-send">
+            <input id="hexInput" placeholder="7F or 31 CE" spellcheck="false" />
+            <button id="sendHexBtn" disabled data-i18n="sendHex">Send HEX</button>
+            <button id="readByteBtn" disabled data-i18n="readByte">Read Byte</button>
+          </div>
+        </section>
+
+        <section class="panel log-panel">
+          <div class="sequence-head">
+            <h2 data-i18n="log">Log</h2>
+            <button id="clearLogBtn" data-i18n="clear">Clear</button>
+          </div>
+          <pre id="log" aria-live="polite"></pre>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
