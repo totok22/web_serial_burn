@@ -1,44 +1,82 @@
-# Repository Guidelines
+# 仓库协作指南
 
-## Project Structure & Module Organization
+## 项目结构
 
-This repository currently contains the product and protocol plan in `计划.md`. It describes a browser-based STM32 flashing tool using the Web Serial API, CH340 DTR/RTS control, and the STM32 AN3155 ISP protocol.
+- `index.html`：浏览器入口。
+- `src/app.js`：UI 调度和浏览器烧写流程。
+- `src/serial-transport.js`：Web Serial 传输和 DTR/RTS 复位辅助函数。
+- `src/node-serial-transport.js`：CLI 使用的 Node `serialport` 适配层。
+- `src/stm32.js`：STM32 USART Bootloader 协议。
+- `src/firmware.js`：浏览器端 `.bin` / Intel HEX 加载。
+- `src/node-firmware.js`：CLI 固件加载。
+- `src/cli.js`：Node CLI 烧写入口。
+- `tests/`：Node 测试。
+- `README.md`：使用说明。
+- `计划.md`：简洁实现计划和已验证协议记录。
+- `CHANGELOG.md`：变更记录。
+- `TODO.md`：后续任务。
+- `docs/CH340_HARDWARE.md`：CH340C/CH340X 电路和时序说明。
 
-When implementation begins, keep application code in `src/`, browser assets in `public/` or `assets/`, and tests in `tests/` or colocated `*.test.js` files. Suggested module boundaries:
+## 常用命令
 
-- `src/serial/`: Web Serial port setup, readers, writers, timeouts.
-- `src/stm32/`: bootloader protocol commands, checksums, erase/write/read flows.
-- `src/ui/`: browser UI components and progress/log presentation.
+```bash
+npm install
+npm test
+node src/cli.js --help
+python3 -m http.server 8080
+```
 
-## Build, Test, and Development Commands
+macOS 本地双击启动：
 
-No build system is committed yet. Do not assume `npm` scripts exist until `package.json` is added. Once a frontend stack is introduced, document and maintain these commands:
+```text
+start.command
+```
 
-- `npm install`: install project dependencies.
-- `npm run dev`: start the local browser development server.
-- `npm test`: run automated tests.
-- `npm run build`: create production output, usually in `dist/`.
+已验证 CH340C CLI 命令：
 
-Keep generated folders such as `node_modules/`, `dist/`, and `build/` out of git; they are already ignored.
+```bash
+node src/cli.js \
+  --port /dev/tty.usbserial-10 \
+  --file /Users/poli/STM32CubeIDE/workspace_2.1.1/PDM/Debug/PDM.hex \
+  --reset dtr-low-rts-high \
+  --timeout 3000 \
+  --unlock
+```
 
-## Coding Style & Naming Conventions
+## 硬件注意事项
 
-Use modern JavaScript or TypeScript with 2-space indentation. Prefer small protocol functions with explicit byte-level names, for example `enterBootloader`, `waitAck`, `calcXor`, and `writeMemory`. Keep constants such as `ACK = 0x79`, `NACK = 0x1f`, and `FLASH_BASE = 0x08000000` centralized.
+- 项目内部约定：`true` 为低电平，`false` 为高电平。
+- Node `serialport` 的 modem 线布尔值相反，取反逻辑必须留在 `src/node-serial-transport.js`。
+- 经典 CH340C 入口序列已用 `stm32flash -i -rts,-dtr,dtr` 验证。
+- CH340X 直连电路已抽象为 `ch340x` 自动时序，仍需硬件实测；不要合并到 CH340C 预设。
+- macOS CLI 自动复位优先用 `/dev/tty.usbserial-*`，不要优先用 `/dev/cu.usbserial-*`。
+- STM32 USART Bootloader 默认使用 `115200 8E1`。
+- 未经硬件验证，不要缩短复位后进入 Bootloader 的等待时间。
 
-Comments should explain hardware timing, signal inversion, or protocol edge cases. Avoid comments that restate obvious code.
+## 代码风格
 
-## Testing Guidelines
+- 使用现代 JavaScript 模块和 2 空格缩进。
+- 字节级协议函数保持小而明确。
+- `ACK`、`NACK`、`SYNC` 和命令字节集中维护。
+- 注释只解释时序、电平、协议边界等非显然内容。
+- 修硬件行为时不要顺手做无关重构。
 
-Prioritize unit tests for protocol packet creation, XOR checksums, ACK/NACK handling, timeout behavior, and 4-byte flash padding. Hardware-dependent Web Serial flows should be isolated behind small adapters so they can be mocked in tests.
+## 测试
 
-Name tests after behavior, such as `writeMemory builds address checksum` or `readBytes rejects on timeout`.
+- 修改协议、固件解析或传输层后运行 `npm test`。
+- 优先覆盖包构造、Intel HEX、ACK/NACK、超时和 STM32 响应解析。
+- 硬件流程必须隔离在 transport 适配层之后，便于 Mock。
 
-## Commit & Pull Request Guidelines
+## 文档
 
-Current history uses short, imperative commit subjects, for example `Add .gitignore`. Continue that style: `Add serial handshake`, `Fix ACK timeout handling`.
+- 同步维护 `README.md`、`计划.md`、`CHANGELOG.md`、`TODO.md`、`docs/CH340_HARDWARE.md`。
+- 文档使用中文。
+- 内容要凝练，避免重复背景、营销式表述和未验证结论。
+- 硬件变更必须记录板子、端口、固件、命令和结果。
 
-Pull requests should include a clear summary, test results, and screenshots or short recordings for UI changes. For protocol changes, mention the affected STM32 command bytes and any hardware setup used for verification.
+## Git 与安全
 
-## Security & Configuration Tips
-
-Do not commit firmware binaries, logs containing device details, or `.env*` files. Web Serial requires HTTPS or localhost and must call `navigator.serial.requestPort()` from a direct user action.
+- 不提交固件二进制、设备日志、`.env*`、`node_modules/`、`dist/`、`build/`。
+- 不回滚用户改动，除非用户明确要求。
+- commit subject 使用简短祈使句，例如 `Fix CH340 reset timing`。
+- Web Serial 必须由用户点击触发 `navigator.serial.requestPort()`，且需要 HTTPS 或 localhost。

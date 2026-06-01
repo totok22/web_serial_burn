@@ -73,7 +73,7 @@ export class Stm32Bootloader {
   async getCommands() {
     await this.sendCommand(COMMANDS.GET);
     const countMinusOne = (await this.transport.readExact(1, this.timeout))[0];
-    const payload = await this.transport.readExact(countMinusOne + 2, this.timeout);
+    const payload = await this.transport.readExact(countMinusOne + 1, this.timeout);
     await this.expectAck();
     const version = payload[0];
     const commands = payload.slice(1);

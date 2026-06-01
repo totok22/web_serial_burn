@@ -108,12 +108,25 @@ function applyChoice(signals, choice) {
   if (name === "rts") signals.requestToSend = value;
 }
 
+function signalsForChoice(choice) {
+  const signals = {};
+  applyChoice(signals, choice);
+  return signals;
+}
+
+function isCh340xMode(modeOrConfig) {
+  return modeOrConfig === "ch340x";
+}
+
 function normalizeResetConfig(modeOrConfig) {
   if (!modeOrConfig || modeOrConfig === "dtr-high-rts-low") {
-    return { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-true" };
+    return { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-false" };
   }
   if (modeOrConfig === "dtr-low-rts-high") {
-    return { boot0High: "dtr-true", boot0Low: "dtr-false", resetAssert: "rts-true" };
+    return { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-true" };
+  }
+  if (isCh340xMode(modeOrConfig)) {
+    return null;
   }
   if (modeOrConfig === "none") return null;
   if (typeof modeOrConfig === "object") {
@@ -127,38 +140,67 @@ function normalizeResetConfig(modeOrConfig) {
   return { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-true" };
 }
 
+export function bootloaderEntryStages(modeOrConfig) {
+  if (isCh340xMode(modeOrConfig)) {
+    return [
+      {
+        name: "CH340X 直连电路",
+        config: "ch340x",
+      },
+    ];
+  }
+  return [{ name: "default", config: modeOrConfig }];
+}
+
 // STM32 进入 Bootloader 物理时序（兼容 CH340C 经典三极管和 CH340X 直连，并允许自定义映射）
 export async function enterBootloader(transport, delay, modeOrConfig) {
+  if (isCh340xMode(modeOrConfig)) {
+    // CH340X 直连：先压住 RESET 并建立 BOOT 条件，再释放 RESET 让 MCU 采样进入 ROM ISP。
+    await transport.setSignals({ requestToSend: true, dataTerminalReady: false });
+    await delay(150);
+
+    await transport.setSignals({ requestToSend: false, dataTerminalReady: true });
+    await delay(800);
+    return;
+  }
+
   const config = normalizeResetConfig(modeOrConfig);
   if (!config) return;
 
-  const hold = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(hold, config.boot0High);
-  applyChoice(hold, config.resetAssert);
-  await transport.setSignals(hold);
-  await delay(120);
+  await transport.setSignals(signalsForChoice(config.boot0High));
+  await delay(100);
 
-  const releaseReset = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(releaseReset, config.boot0High);
-  await transport.setSignals(releaseReset);
-  await delay(80);
+  await transport.setSignals(signalsForChoice(config.resetAssert));
+  await delay(100);
+
+  await transport.setSignals(signalsForChoice(invertChoice(config.resetAssert)));
+  await delay(800);
 }
 
 // 物理复位并运行用户程序
 export async function resetToRun(transport, delay, modeOrConfig) {
+  if (isCh340xMode(modeOrConfig)) {
+    // CH340X 直连：保持 BOOT0 为运行态，脉冲 RESET 后释放运行。
+    await transport.setSignals({ dataTerminalReady: true, requestToSend: true });
+    await delay(100);
+
+    await transport.setSignals({ dataTerminalReady: true, requestToSend: false });
+    await delay(800);
+    return;
+  }
+
   const config = normalizeResetConfig(modeOrConfig);
   if (!config) return;
 
-  const hold = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(hold, config.boot0Low);
-  applyChoice(hold, config.resetAssert);
-  await transport.setSignals(hold);
-  await delay(120);
+  await transport.setSignals(signalsForChoice(config.boot0Low));
+  await delay(100);
 
-  const releaseReset = { dataTerminalReady: false, requestToSend: false };
-  applyChoice(releaseReset, config.boot0Low);
-  await transport.setSignals(releaseReset);
-  await delay(80);
+  await transport.setSignals(signalsForChoice(config.resetAssert));
+  await delay(100);
+
+  await transport.setSignals(signalsForChoice(invertChoice(config.resetAssert)));
+  await delay(200);
 
   await transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+  await delay(800);
 }

@@ -229,6 +229,26 @@ select#languageSelect {
   font-size: 13px;
 }
 
+.circuit-help {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.circuit-help summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.circuit-help p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
 .option-list {
   display: flex;
   flex-direction: column;

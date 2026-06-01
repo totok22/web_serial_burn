@@ -1,0 +1,24 @@
+# 变更记录
+
+## 未发布
+
+- 增加 Intel HEX 解析，包含校验和、EOF、地址和记录长度校验。
+- 增加 Node.js CLI 烧写入口。
+- 增加 macOS `start.command`，用于双击启动本地服务。
+- 增加基于 `serialport` 的 Node 串口适配层。
+- 修复 STM32 GET 命令解析：payload 长度为 `N + 1`，随后才是最终 ACK。
+- 修复 CH340C 经典电路的 CLI DTR/RTS 入口时序。
+- 增加 Node `serialport` DTR/RTS 电平取反适配。
+- 增加进入 Bootloader 后的稳定等待时间。
+- 增加 Intel HEX 和 STM32 包格式测试。
+- 记录 macOS CH340 优先使用 `/dev/tty.usbserial-*`。
+- 增加 CH340C 和 CH340X 硬件说明。
+- 增加 `ch340x` 直连电路自动时序预设，供后续 CH340X 实测。
+
+## 已验证
+
+- macOS + CH340C 经典电路。
+- STM32F10xxx Medium-density，PID `0x0410`。
+- Bootloader 版本 `0x22`。
+- 固件 `/Users/poli/STM32CubeIDE/workspace_2.1.1/PDM/Debug/PDM.hex`。
+- CLI 擦除、写入、校验完成。

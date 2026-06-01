@@ -1,0 +1,17 @@
+{
+  "name": "web-mcu-burner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "web-mcu-burn": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "cli": "node ./src/cli.js"
+  },
+  "optionalDependencies": {
+    "serialport": "^13.0.0"
+  },
+  "devDependencies": {}
+}

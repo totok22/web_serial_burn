@@ -1,5 +1,5 @@
 import { Stm32Bootloader, toHex } from "./stm32.js";
-import { SerialTransport, enterBootloader, resetToRun } from "./serial-transport.js";
+import { SerialTransport, bootloaderEntryStages, enterBootloader, resetToRun } from "./serial-transport.js";
 import { loadFirmwareFile } from "./firmware.js";
 
 const $ = (id) => document.getElementById(id);
@@ -8,15 +8,19 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const i18n = {
   zh: {
     eyebrow: "Web Serial / STM32 UART ISP",
-    appTitle: "Web FlyMcu",
+    appTitle: "Web MCU Burner",
     settingsTitle: "烧写设置",
     target: "目标协议",
     selectPort: "请选择串口",
-    chooseFirmware: "点击选择固件文件 (.bin)",
+    chooseFirmware: "点击选择固件文件 (.bin / .hex)",
     noFile: "未加载文件",
     resetLogicTitle: "DTR/RTS 复位模式",
-    resetMode1: "DTR的高电平复位，RTS低电平进BootLoader (推荐/CH340X)",
-    resetMode2: "DTR的低电平复位，RTS高电平进BootLoader",
+    resetMode1: "通用：DTR高电平复位，RTS低电平进BootLoader",
+    resetMode2: "CH340C 经典三极管电路 (已验证)",
+    resetModeCh340x: "CH340X 直连电路",
+    circuitHelp: "电路说明",
+    circuitCh340c: "CH340C 经典三极管电路：DTR/RTS 经过外部三极管控制 RESET 和 BOOT0，已验证使用 DTR低电平复位、RTS高电平进BootLoader。",
+    circuitCh340x: "CH340X 直连电路：DTR#/RTS# 直接参与 RESET/BOOT0 控制，使用先压住复位并建立 BOOT 条件、再释放复位的自动时序。",
     resetModeCustom: "自定义 DTR/RTS 映射",
     resetModeNone: "不使用控制线 (手动按键进Boot)",
     advancedSettings: "高级设置...",
@@ -52,15 +56,19 @@ const i18n = {
   },
   en: {
     eyebrow: "Web Serial / STM32 UART ISP",
-    appTitle: "Web FlyMcu",
+    appTitle: "Web MCU Burner",
     settingsTitle: "Programming Settings",
     target: "Target protocol",
     selectPort: "Select Serial Port",
-    chooseFirmware: "Click to select firmware (.bin)",
+    chooseFirmware: "Click to select firmware (.bin / .hex)",
     noFile: "No file loaded",
     resetLogicTitle: "DTR/RTS reset mode",
-    resetMode1: "DTR high reset, RTS low bootloader (CH340X)",
-    resetMode2: "DTR low reset, RTS high bootloader",
+    resetMode1: "Generic: DTR high reset, RTS low bootloader",
+    resetMode2: "Classic CH340C transistor circuit (verified)",
+    resetModeCh340x: "CH340X direct circuit",
+    circuitHelp: "Circuit notes",
+    circuitCh340c: "Classic CH340C transistor circuit: DTR/RTS drive RESET and BOOT0 through external transistors. Verified with DTR-low reset, RTS-high bootloader.",
+    circuitCh340x: "CH340X direct circuit: DTR#/RTS# directly participate in RESET/BOOT0 control. The preset holds reset while setting BOOT, then releases reset automatically.",
     resetModeCustom: "Custom DTR/RTS mapping",
     resetModeNone: "No control flow (Manual boot)",
     advancedSettings: "Advanced settings...",
@@ -314,7 +322,7 @@ async function disconnect() {
   updateUi();
 }
 
-// ============== 核心烧录流水线 (FlyMCU Logic) ==============
+// ============== 核心烧录流水线 ==============
 
 async function runAutoProgram() {
     const config = options();
@@ -330,6 +338,23 @@ async function runAutoProgram() {
     resetSteps();
     els.log.innerHTML += "<br/>========== 开始一键烧写流程 ==========\n";
 
+    async function enterAndSyncBootloader() {
+        const stages = bootloaderEntryStages(config.resetConfig);
+        let info = null;
+        let chipId = null;
+        for (const [index, stage] of stages.entries()) {
+            const suffix = stages.length > 1 ? ` (${stage.name}, ${index + 1}/${stages.length})` : "";
+            log(`2.${index + 1} 正在进入 Bootloader 并同步${suffix}...`);
+            await enterBootloader(state.transport, delay, stage.config);
+            await state.transport.flushReadBuffer();
+            await state.bootloader.sync();
+            info = await state.bootloader.getCommands();
+            chipId = await state.bootloader.getId();
+            log(`==> 同步成功${suffix}: Bootloader ${toHex(info.version)}, PID ${toHex(chipId, 4)}`);
+        }
+        return { info, chipId };
+    }
+
     try {
         // 第一步: 端口本身我们已经打开了
         setStep("port", "done");
@@ -337,21 +362,11 @@ async function runAutoProgram() {
         // 第二步: 通过 DTR/RTS 唤起 Bootloader
         setStep("boot", "active");
         log(`1. 正在复位单片机并进入 ISP 模式 (模式: ${config.resetLogic})...`);
-        await enterBootloader(state.transport, delay, config.resetConfig);
         setStep("boot", "done");
 
-        // 第三步: 并行测试波特率 & 握手
+        // 第三步: 测试波特率 & 握手
         setStep("sync", "active");
-        log(`2. 正在进行底层波特率检测与同步协商(Sync)...`);
-
-        // 这一步清空一下可能杂乱的串口读缓冲
-        await state.transport.flushReadBuffer();
-
-        await state.bootloader.sync();
-        const info = await state.bootloader.getCommands();
-        const chipId = await state.bootloader.getId();
-        log(`==> 芯片同步成功!`);
-        log(`==> Bootloader 版本: ${toHex(info.version)}, PID: ${toHex(chipId, 4)}`);
+        await enterAndSyncBootloader();
         setStep("sync", "done");
 
         // 第四步: 擦除
@@ -369,9 +384,7 @@ async function runAutoProgram() {
                     log(`==> 保护已解除，芯片已自我重置。需重新建立握手接管。`);
 
                     log(`[*] 再次进入 Bootloader 模式...`);
-                    await enterBootloader(state.transport, delay, config.resetConfig);
-                    await state.transport.flushReadBuffer();
-                    await state.bootloader.sync();
+                    await enterAndSyncBootloader();
                     log(`[*] 二次握手同步成功！接管完成。`);
                 } else {
                     throw error; // 不是NACK问题，或是没开强制解锁，直接往外抛异常终止

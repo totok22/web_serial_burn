@@ -1,35 +1,109 @@
-# Web MCU Burner (Web FlyMcu)
+# Web MCU Burner
 
-一个无需安装、跨 Windows/Mac/Linux 平台、基于纯浏览器的 STM32 全功能串口烧录工具。
-利用现代浏览器的 Web Serial API，让你直接在网页上完成固件烧录。
+基于 Web Serial 和 STM32 USART Bootloader 的浏览器烧写工具，覆盖 STM32 串口 ISP 的自动进 Bootloader、擦除、烧写、校验和复位运行。
 
-## 核心特性
+## 当前能力
 
-- **完全免安装**：基于 Web API 打造，直接打开网页即可使用。
-- **自动握手与重置**：内部精准还原了经典 STM32 ISP 协议时序，支持控制 DTR 和 RTS 引脚来进行复位、进入 Bootloader。
-- **高度硬件兼容**：完美兼容 CH340N/C/G 经典的三极管反相电路，以及 CH340X 免外围直连电路。
-- **排障向导优化**：包含强力的“解除读保护”逻辑，当探测到芯片因上锁无法烧录时，能够自动触发芯片全片清除。
-- **交互式流控**：分块、验证、复位三位一体，并在侧边栏提供精确到单步流程的状态跟踪日志展示。
+- 浏览器端烧写 STM32 UART ISP。
+- 支持 `.bin` 和 Intel HEX `.hex` 固件。
+- 支持 CH340C 经典 DTR/RTS 自动进 Bootloader 电路。
+- 提供 `ch340x` 直连电路自动时序，待 CH340X 硬件验证。
+- 支持擦除、写入、读回校验、读保护解除。
+- 提供 Node.js CLI，便于本机调试和硬件验证。
+- macOS 提供 `start.command`，双击后启动本地服务并打开网站。
+- CH340 电路细节见 `docs/CH340_HARDWARE.md`。
 
-## 使用方法
+## 浏览器使用
 
-1. 必须使用支持 Web Serial API 的浏览器（如新版 Chrome、Edge），并在 HTTPS 或 Localhost 环境下运行。
-2. 推荐配合简单的本地服务器或者将其部署至静态网页托管服务（如 GitHub Pages、Vercel 等）以获得最佳体验。
-3. 点击“选择固件”以加载您的 `.bin` 文件。
-4. 点击“开始编程”即可自动化完成进入 Bootloader、连络协商、擦写和复位运行的全部工序。
+1. 使用 Chrome 或 Edge。
+2. 通过 HTTPS 或 localhost 打开页面。
+3. 选择串口和 `.bin`/`.hex` 固件。
+4. 按硬件选择预设：`CH340C 经典三极管电路` 或 `CH340X 直连电路`。
+5. 点击“开始编程”。
 
-## 本地调试
+本地启动：
 
-你可以使用任何本地静态服务运行此项目：
 ```bash
-# 比如使用 Python HTTP 服务
 python3 -m http.server 8080
 ```
-然后于浏览器在 `http://127.0.0.1:8080` 中访问 `index.html` 即可。
 
-## 技术规格实现 
-- 严格遵循了 AN3155 STM32 USART 系统存储器 Bootloader 协议标准。
-- 对于控制脚 (DTR/RTS) 遵循了严谨的三步走复位启动时序：
-  - 第一步：压死 RESET，设置期望的 BOOT0 电平。
-  - 第二步：释放 RESET 引脚，继续保持 BOOT0 电信恒定让单片机安心采样起步。
-  - 第三步：彻底释放 BOOT0。
+打开：
+
+```text
+http://127.0.0.1:8080/index.html
+```
+
+macOS 可直接双击：
+
+```text
+start.command
+```
+
+## CLI 使用
+
+安装依赖：
+
+```bash
+npm install
+```
+
+macOS CH340 通常同时有 `/dev/cu.*` 和 `/dev/tty.*`。自动 DTR/RTS 进 Bootloader 时优先使用 `/dev/tty.usbserial-*`。
+
+已在 CH340C 经典电路上验证通过的命令：
+
+```bash
+node src/cli.js \
+  --port /dev/tty.usbserial-10 \
+  --file /Users/poli/STM32CubeIDE/workspace_2.1.1/PDM/Debug/PDM.hex \
+  --reset dtr-low-rts-high \
+  --timeout 3000 \
+  --unlock
+```
+
+查看参数：
+
+```bash
+node src/cli.js --help
+```
+
+## CH340C 时序
+
+项目内部使用统一电平语义：
+
+- `true` 表示低电平。
+- `false` 表示高电平。
+
+经典 CH340C 自动 ISP 已验证入口序列：
+
+1. RTS 低电平，选择 Bootloader。
+2. DTR 低电平，触发复位。
+3. DTR 高电平，释放复位。
+4. 等待约 800ms 后发送 STM32 Sync `0x7F`。
+
+该序列等价于 `stm32flash` 可工作的入口序列：
+
+```bash
+stm32flash -b 115200 -i -rts,-dtr,dtr /dev/tty.usbserial-10
+```
+
+CH340C、CH340X 电路差异和时序推导见 `docs/CH340_HARDWARE.md`。
+
+CH340X 直连电路预设：
+
+```bash
+node src/cli.js --port <port> --file firmware.hex --reset ch340x
+```
+
+## 开发命令
+
+```bash
+npm test
+node src/cli.js --help
+```
+
+## 已知限制
+
+- Web Serial 必须由用户点击触发串口授权。
+- CLI 依赖 `serialport`，浏览器端不需要该依赖。
+- 当前自动流程只实现 STM32 USART Bootloader。
+- CH340 自动复位电路差异较大，新增板型前应先用 CLI 验证 DTR/RTS 序列。

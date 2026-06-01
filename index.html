@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Web FlyMcu</title>
+    <title>Web MCU Burner</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23101113'/%3E%3Cpath d='M15 34h34M20 22h24M20 46h24' stroke='%23ffb000' stroke-width='6' stroke-linecap='square'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
@@ -13,7 +13,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow" data-i18n="eyebrow">Web Serial / STM32 UART ISP</p>
-            <h1 data-i18n="appTitle">Web FlyMcu</h1>
+            <h1 data-i18n="appTitle">Web MCU Burner</h1>
           </div>
           <div class="top-actions">
             <select id="languageSelect" aria-label="Language">
@@ -61,12 +61,19 @@
               <label class="reset-logic-label">
                 <span data-i18n="resetLogicTitle">DTR/RTS 复位模式</span>
                 <select id="resetLogic">
-                  <option value="dtr-high-rts-low" data-i18n="resetMode1">DTR的高电平复位，RTS低电平进BootLoader (推荐/CH340X)</option>
-                  <option value="dtr-low-rts-high" data-i18n="resetMode2">DTR的低电平复位，RTS高电平进BootLoader</option>
+                  <option value="dtr-low-rts-high" data-i18n="resetMode2" selected>CH340C 经典三极管电路 (已验证)</option>
+                  <option value="ch340x" data-i18n="resetModeCh340x">CH340X 直连电路</option>
+                  <option value="dtr-high-rts-low" data-i18n="resetMode1">通用：DTR高电平复位，RTS低电平进BootLoader</option>
                   <option value="custom" data-i18n="resetModeCustom">自定义 DTR/RTS 映射</option>
                   <option value="none" data-i18n="resetModeNone">不使用控制线 (手动按键进Boot)</option>
                 </select>
               </label>
+
+              <details class="circuit-help">
+                <summary data-i18n="circuitHelp">电路说明</summary>
+                <p data-i18n="circuitCh340c">CH340C 经典三极管电路：DTR/RTS 经过外部三极管控制 RESET 和 BOOT0，已验证使用 DTR低电平复位、RTS高电平进BootLoader。</p>
+                <p data-i18n="circuitCh340x">CH340X 直连电路：DTR#/RTS# 直接参与 RESET/BOOT0 控制，使用先压住复位并建立 BOOT 条件、再释放复位的自动时序。</p>
+              </details>
 
               <div class="option-list">
                 <label><input id="doErase" type="checkbox" checked /> <span data-i18n="doErase">烧录前全片擦除</span></label>
