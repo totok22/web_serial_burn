@@ -713,23 +713,6 @@ els.dtrHighBtn.addEventListener("click", async () => { log("DTR = 3.3V (False)")
 els.rtsLowBtn.addEventListener("click", async () => { log("RTS = 0V (True)"); await state.transport.setSignals({ requestToSend: true }); });
 els.rtsHighBtn.addEventListener("click", async () => { log("RTS = 3.3V (False)"); await state.transport.setSignals({ requestToSend: false }); });
 
-// ==== 电路图点击放大 ====
-document.querySelectorAll(".circuit-images img").forEach((img) => {
-  img.addEventListener("click", () => {
-    const overlay = document.createElement("div");
-    overlay.className = "lightbox-overlay";
-    const clone = document.createElement("img");
-    clone.src = img.src;
-    clone.alt = img.alt;
-    overlay.appendChild(clone);
-    overlay.addEventListener("click", () => overlay.remove());
-    document.addEventListener("keydown", function esc(e) {
-      if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", esc); }
-    });
-    document.body.appendChild(overlay);
-  });
-});
-
 // Circuit dialog
 els.circuitInfoBtn.addEventListener("click", () => els.circuitDialog.showModal());
 els.circuitDialogClose.addEventListener("click", () => els.circuitDialog.close());

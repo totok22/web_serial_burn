@@ -55,6 +55,20 @@ body {
   min-height: 100svh;
   background: var(--bg);
   color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.panel,
+button,
+input,
+select,
+.file-drop,
+#log,
+.option-list,
+.advanced-settings,
+.app-footer,
+.circuit-dialog {
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 button,
@@ -380,38 +394,12 @@ select#languageSelect {
   height: auto;
   object-fit: contain;
   background: var(--img-bg);
-  cursor: zoom-in;
 }
 
 .circuit-images figcaption {
   padding: 5px 8px;
   font-size: 11px;
   color: var(--muted);
-}
-
-/* lightbox overlay */
-.lightbox-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  cursor: zoom-out;
-  animation: lb-fade-in 0.15s ease;
-}
-
-.lightbox-overlay img {
-  max-width: 92vw;
-  max-height: 92vh;
-  border-radius: 6px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
-}
-
-@keyframes lb-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
 }
 
 .option-list {
@@ -629,7 +617,6 @@ button:disabled {
   padding: 20px 0 8px;
   font-size: 12px;
   color: var(--muted);
-  border-top: 1px solid var(--line);
 }
 
 .footer-sep {
