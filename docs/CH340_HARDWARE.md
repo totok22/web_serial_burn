@@ -60,20 +60,38 @@ node src/cli.js \
 
 不要把 CH340C 序列直接套用到 CH340X。CH340X 应独立成预设，并通过硬件验证。
 
-## CH340X 时序推导
+## CH340X 实测时序
 
-某个 CH340X 直连电路上，曾观察到两组复位/BOOT 极性切换后可以完成下载。该现象的价值不在于人工步骤本身，而在于暴露了直连电路需要的连续物理时序：
+2026-06-05 使用 CAN2RS485 板实测，`ch340x` 预设入口时序为：
 
-- 先建立“RESET 被压住、BOOT0 被置入 Bootloader 条件”的状态。
-- 再释放 RESET，让 MCU 在 BOOT0 有效窗口进入 ROM ISP。
-- 下载阶段应维持可通讯状态，不再停留在 RESET 被压住的状态。
+1. RTS 运行态，DTR 释放 RESET。
+2. RTS 进入 Bootloader 条件，DTR 保持释放。
+3. RTS 保持 Bootloader 条件，DTR 触发 RESET。
+4. RTS 保持 Bootloader 条件，DTR 释放 RESET。
+5. 等待约 1000ms 后发送 STM32 同步字节 `0x7F`。
+
+退出运行时序：
+
+1. RTS 退出 Bootloader 条件，DTR 保持运行复位初态。
+2. RTS 保持运行态，DTR 切换到相反电平触发 RESET。
+3. RTS 保持运行态，DTR 回到初态，释放 RESET 运行用户程序。
 
 项目实现：
 
 - `ch340x` 预设直接合成上述物理时序。
-- 入口：建立 BOOT 条件并压住 RESET，然后释放 RESET 进入通讯态。
-- 退出：保持 BOOT 运行态，脉冲 RESET，释放复位运行用户程序。
-- 该预设已写入 CLI 和浏览器 UI，尚待 CH340X 硬件实测。
+- 入口：建立 BOOT 条件后脉冲 RESET，再释放 RESET 进入通讯态。
+- 退出：退出 BOOT 条件后使用实测相反 RESET 极性脉冲，释放复位运行用户程序。
+- Node `serialport` 仍由 `src/node-serial-transport.js` 负责取反。
+
+验证对象：
+
+- CH340X 直连电路 CAN2RS485 板。
+- macOS 端口 `/dev/tty.usbserial-10`。
+- 固件 `/Users/poli/STM32CubeIDE/workspace_2.1.1/CAN2RS485/build/Debug/CAN2RS485.hex`。
+- Bootloader `0x31`。
+- PID `0x0413`。
+- CLI 确认有效入口组合 `RTS BOOT=true / DTR RESET=false`。
+- 擦除、写入、读回校验完成。
 
 ## 排查清单
 

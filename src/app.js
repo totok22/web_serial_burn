@@ -1,6 +1,6 @@
-import { ACK, COMMANDS, NACK, SYNC, Stm32Bootloader, addressPacket, toHex } from "./stm32.js";
-import { SerialTransport, bootloaderEntryStages, enterBootloader, resetToRun } from "./serial-transport.js";
-import { loadFirmwareFile } from "./firmware.js";
+import { ACK, COMMANDS, NACK, SYNC, Stm32Bootloader, addressPacket, toHex } from "./stm32.js?v=20260605";
+import { SerialTransport, bootloaderEntryStages, enterBootloader, resetToRun } from "./serial-transport.js?v=20260605";
+import { loadFirmwareFile } from "./firmware.js?v=20260605";
 
 const $ = (id) => document.getElementById(id);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -235,9 +235,13 @@ function options() {
 
 function browserBootloaderEntryStages(config) {
   const stages = bootloaderEntryStages(config.resetConfig);
-  if (config.resetLogic !== "dtr-low-rts-high") return stages;
+  if (!["dtr-low-rts-high", "ch340x"].includes(config.resetLogic)) return stages;
 
+  const firstStage = config.resetLogic === "ch340x"
+    ? makeBrowserResetStage("RTS BOOT=false / DTR RESET=true", "rts", false, "dtr", true)
+    : makeBrowserResetStage("RTS BOOT=true / DTR RESET=false", "rts", true, "dtr", false);
   const explicitStages = [
+    firstStage,
     makeBrowserResetStage("RTS BOOT=true / DTR RESET=false", "rts", true, "dtr", false),
     makeBrowserResetStage("RTS BOOT=true / DTR RESET=true", "rts", true, "dtr", true),
     makeBrowserResetStage("RTS BOOT=false / DTR RESET=true", "rts", false, "dtr", true),
@@ -246,7 +250,9 @@ function browserBootloaderEntryStages(config) {
     makeBrowserResetStage("DTR BOOT=true / RTS RESET=false", "dtr", true, "rts", false),
     makeBrowserResetStage("DTR BOOT=false / RTS RESET=true", "dtr", false, "rts", true),
     makeBrowserResetStage("DTR BOOT=false / RTS RESET=false", "dtr", false, "rts", false),
-  ];
+  ].filter((stage, index, allStages) =>
+    allStages.findIndex((candidate) => candidate.name === stage.name) === index
+  );
 
   return [
     ...explicitStages,
@@ -337,6 +343,17 @@ async function releaseBootForRunStage(transport, delay, stageConfig) {
   const [releaseStep] = stageConfig;
   await transport.setSignals(releaseStep.signals);
   await delay(releaseStep.delayMs);
+}
+
+async function resetCh340xWebToRun(transport, delay) {
+  await transport.setSignals({ requestToSend: true, dataTerminalReady: true });
+  await delay(250);
+
+  await transport.setSignals({ requestToSend: true, dataTerminalReady: false });
+  await delay(250);
+
+  await transport.setSignals({ requestToSend: true, dataTerminalReady: true });
+  await delay(1000);
 }
 
 async function goToAddress(bootloader, transport, address) {
@@ -475,6 +492,18 @@ async function disconnect() {
   updateUi();
 }
 
+async function closePortAfterRun() {
+  if (state.transport) {
+      await state.transport.close();
+  }
+  state.connected = false;
+  state.port = null;
+  state.transport = null;
+  state.bootloader = null;
+  log("==> 串口已关闭，DTR/RTS 控制线已释放。");
+  updateUi();
+}
+
 // ============== 核心烧录流水线 ==============
 
 async function runAutoProgram() {
@@ -491,6 +520,7 @@ async function runAutoProgram() {
     resetSteps();
     els.log.innerHTML += "<br/>========== 开始一键烧写流程 ==========\n";
     let selectedRunConfig = null;
+    let shouldClosePortAfterRun = false;
 
     async function enterAndSyncBootloader() {
         const stages = browserBootloaderEntryStages(config);
@@ -589,15 +619,22 @@ async function runAutoProgram() {
         // 第七步: 复位运行
         if (config.doRun) {
             setStep("run", "active");
-            log(`6. 正在释放 BOOT 条件并跳转运行用户程序...`);
-            try {
-                await releaseBootForRunStage(state.transport, delay, selectedRunConfig);
-                await goToAddress(state.bootloader, state.transport, config.flashBase);
-                log(`==> 已通过 Bootloader GO 跳转到 ${toHex(config.flashBase, 8)}，请观察板子是否正常运行。`);
-            } catch (error) {
-                log(`⚠️ GO 跳转失败: ${error.message}，改用硬件 RESET 脉冲...`, "warn");
-                await resetToRunStage(state.transport, delay, selectedRunConfig, config.resetConfig);
+            if (config.resetLogic === "ch340x") {
+                log(`6. 正在按 CH340X 运行时序复位用户程序...`);
+                await resetCh340xWebToRun(state.transport, delay);
+                shouldClosePortAfterRun = true;
                 log(`==> 已发送硬件 RESET 脉冲，请观察板子是否正常运行。`);
+            } else {
+                log(`6. 正在跳转运行用户程序并释放 BOOT 条件...`);
+                try {
+                    await goToAddress(state.bootloader, state.transport, config.flashBase);
+                    await releaseBootForRunStage(state.transport, delay, selectedRunConfig);
+                    log(`==> 已通过 Bootloader GO 跳转到 ${toHex(config.flashBase, 8)}，请观察板子是否正常运行。`);
+                } catch (error) {
+                    log(`⚠️ GO 跳转失败: ${error.message}，改用硬件 RESET 脉冲...`, "warn");
+                    await resetToRunStage(state.transport, delay, selectedRunConfig, config.resetConfig);
+                    log(`==> 已发送硬件 RESET 脉冲，请观察板子是否正常运行。`);
+                }
             }
         } else {
             log(`6. (烧写完毕，程序停留在 Bootloader 等待手动复位)`);
@@ -606,6 +643,9 @@ async function runAutoProgram() {
         setProgress(100);
 
         log(`🎉 任务圆满完成！(Total Success)`, "info");
+        if (shouldClosePortAfterRun) {
+            await closePortAfterRun();
+        }
 
     } catch (e) {
         log(`❌ 烧写流程终止: ${e.message}`, "error");

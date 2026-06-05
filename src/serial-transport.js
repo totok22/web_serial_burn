@@ -155,12 +155,18 @@ export function bootloaderEntryStages(modeOrConfig) {
 // STM32 进入 Bootloader 物理时序（兼容 CH340C 经典三极管和 CH340X 直连，并允许自定义映射）
 export async function enterBootloader(transport, delay, modeOrConfig) {
   if (isCh340xMode(modeOrConfig)) {
-    // CH340X 直连：先压住 RESET 并建立 BOOT 条件，再释放 RESET 让 MCU 采样进入 ROM ISP。
+    // CH340X 直连实测时序：先释放 RESET 并保持 BOOT0 运行态，再建立 BOOT 条件、脉冲 RESET。
+    await transport.setSignals({ requestToSend: false, dataTerminalReady: true });
+    await delay(150);
+
+    await transport.setSignals({ requestToSend: true, dataTerminalReady: true });
+    await delay(150);
+
     await transport.setSignals({ requestToSend: true, dataTerminalReady: false });
     await delay(150);
 
-    await transport.setSignals({ requestToSend: false, dataTerminalReady: true });
-    await delay(800);
+    await transport.setSignals({ requestToSend: true, dataTerminalReady: true });
+    await delay(1000);
     return;
   }
 
@@ -180,12 +186,15 @@ export async function enterBootloader(transport, delay, modeOrConfig) {
 // 物理复位并运行用户程序
 export async function resetToRun(transport, delay, modeOrConfig) {
   if (isCh340xMode(modeOrConfig)) {
-    // CH340X 直连：保持 BOOT0 为运行态，脉冲 RESET 后释放运行。
-    await transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-    await delay(100);
+    // CH340X 直连：退出 BOOT 条件后脉冲 RESET，运行用户程序。
+    await transport.setSignals({ requestToSend: false, dataTerminalReady: false });
+    await delay(250);
 
-    await transport.setSignals({ dataTerminalReady: true, requestToSend: false });
-    await delay(800);
+    await transport.setSignals({ requestToSend: false, dataTerminalReady: true });
+    await delay(250);
+
+    await transport.setSignals({ requestToSend: false, dataTerminalReady: false });
+    await delay(1000);
     return;
   }
 

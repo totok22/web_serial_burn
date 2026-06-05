@@ -93,13 +93,13 @@ export class Stm32Bootloader {
     if (this.supportedCommands.has(COMMANDS.EXTENDED_ERASE)) {
       await this.sendCommand(COMMANDS.EXTENDED_ERASE);
       await this.transport.write([0xff, 0xff, 0x00]);
-      await this.expectAck(15000);
+      await this.expectAck(60000);
       return "extended";
     }
 
     await this.sendCommand(COMMANDS.ERASE);
     await this.transport.write([0xff, 0x00]);
-    await this.expectAck(15000);
+    await this.expectAck(60000);
     return "legacy";
   }
 

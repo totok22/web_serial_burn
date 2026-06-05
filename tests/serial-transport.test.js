@@ -30,10 +30,14 @@ test("enterBootloader applies CH340X direct timing", async () => {
   await enterBootloader(transport, async (ms) => calls.push(["delay", ms]), "ch340x");
 
   assert.deepEqual(calls, [
+    ["signals", { requestToSend: false, dataTerminalReady: true }],
+    ["delay", 150],
+    ["signals", { requestToSend: true, dataTerminalReady: true }],
+    ["delay", 150],
     ["signals", { requestToSend: true, dataTerminalReady: false }],
     ["delay", 150],
-    ["signals", { requestToSend: false, dataTerminalReady: true }],
-    ["delay", 800],
+    ["signals", { requestToSend: true, dataTerminalReady: true }],
+    ["delay", 1000],
   ]);
 });
 
@@ -48,9 +52,11 @@ test("resetToRun applies CH340X run timing", async () => {
   await resetToRun(transport, async (ms) => calls.push(["delay", ms]), "ch340x");
 
   assert.deepEqual(calls, [
-    ["signals", { dataTerminalReady: true, requestToSend: true }],
-    ["delay", 100],
-    ["signals", { dataTerminalReady: true, requestToSend: false }],
-    ["delay", 800],
+    ["signals", { requestToSend: false, dataTerminalReady: false }],
+    ["delay", 250],
+    ["signals", { requestToSend: false, dataTerminalReady: true }],
+    ["delay", 250],
+    ["signals", { requestToSend: false, dataTerminalReady: false }],
+    ["delay", 1000],
   ]);
 });

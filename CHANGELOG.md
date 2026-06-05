@@ -13,7 +13,9 @@
 - 增加 Intel HEX 和 STM32 包格式测试。
 - 记录 macOS CH340 优先使用 `/dev/tty.usbserial-*`。
 - 增加 CH340C 和 CH340X 硬件说明。
-- 增加 `ch340x` 直连电路自动时序预设，供后续 CH340X 实测。
+- 增加并实测 `ch340x` 直连电路自动时序预设。
+- 将 STM32 全片擦除等待时间放宽到 60 秒，兼容擦除较慢的芯片。
+- 增加 STM32 `GO` 命令支持，用于烧写后跳转运行。
 
 ## 已验证
 
@@ -21,4 +23,9 @@
 - STM32F10xxx Medium-density，PID `0x0410`。
 - Bootloader 版本 `0x22`。
 - 固件 `/Users/poli/STM32CubeIDE/workspace_2.1.1/PDM/Debug/PDM.hex`。
+- CLI 擦除、写入、校验完成。
+- macOS + CH340X 直连电路 CAN2RS485 板。
+- STM32 PID `0x0413`。
+- Bootloader 版本 `0x31`。
+- 固件 `/Users/poli/STM32CubeIDE/workspace_2.1.1/CAN2RS485/build/Debug/CAN2RS485.hex`。
 - CLI 擦除、写入、校验完成。
