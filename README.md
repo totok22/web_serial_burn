@@ -30,6 +30,12 @@ macOS 可双击：
 start.command
 ```
 
+Windows 可双击：
+
+```text
+start.bat
+```
+
 使用流程：
 
 1. 选择串口。
@@ -64,6 +70,12 @@ node src/cli.js \
 ```
 
 macOS CH340 通常同时存在 `/dev/cu.*` 和 `/dev/tty.*`。自动 DTR/RTS 进 Bootloader 时优先使用 `/dev/tty.usbserial-*`。
+
+Windows 串口端口通常为 `COM3`、`COM4` 等：
+
+```bash
+node src/cli.js --port COM3 --file firmware.hex --reset ch340x --timeout 3000 --unlock
+```
 
 ## 硬件预设
 

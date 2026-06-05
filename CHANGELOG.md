@@ -5,6 +5,7 @@
 - 增加 Intel HEX 解析，包含校验和、EOF、地址和记录长度校验。
 - 增加 Node.js CLI 烧写入口。
 - 增加 macOS `start.command`，用于双击启动本地服务。
+- 增加 Windows `start.bat`，用于双击启动本地服务。
 - 增加基于 `serialport` 的 Node 串口适配层。
 - 修复 STM32 GET 命令解析：payload 长度为 `N + 1`，随后才是最终 ACK。
 - 修复 CH340C 经典电路的 CLI DTR/RTS 入口时序。
@@ -17,6 +18,7 @@
 - 将 STM32 全片擦除等待时间放宽到 60 秒，兼容擦除较慢的芯片。
 - 增加 STM32 `GO` 命令支持，用于烧写后跳转运行。
 - 增加常见 DTR/RTS 复位组合预设。
+- 将通用 DTR/RTS 复位组合改为 FlyMcu 风格的“复位/进 Bootloader”描述。
 - 增加烧写完成后关闭串口选项，避免控制线持续影响目标板运行。
 - 增加 CH340C/CH340X 电路图片和排查经验记录。
 - 增加 LICENSE、CONTRIBUTING 和项目元信息。

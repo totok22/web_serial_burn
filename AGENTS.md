@@ -16,6 +16,7 @@
 - `CHANGELOG.md`：变更记录。
 - `TODO.md`：后续任务。
 - `docs/CH340_HARDWARE.md`：CH340C/CH340X 电路和时序说明。
+- `start.command` / `start.bat`：macOS / Windows 本地服务启动脚本。
 
 ## 常用命令
 
@@ -30,6 +31,12 @@ macOS 本地双击启动：
 
 ```text
 start.command
+```
+
+Windows 本地双击启动：
+
+```text
+start.bat
 ```
 
 已验证 CH340C CLI 命令：

@@ -65,14 +65,14 @@
                   <select id="resetLogic">
                     <option value="dtr-low-rts-high" data-i18n="resetMode2" selected>CH340C 经典电路</option>
                     <option value="ch340x" data-i18n="resetModeCh340x">CH340X 直连电路</option>
-                    <option value="boot-rts-low-reset-dtr-high">BOOT=RTS低 / RESET=DTR高</option>
-                    <option value="boot-rts-low-reset-dtr-low">BOOT=RTS低 / RESET=DTR低</option>
-                    <option value="boot-rts-high-reset-dtr-high">BOOT=RTS高 / RESET=DTR高</option>
-                    <option value="boot-rts-high-reset-dtr-low">BOOT=RTS高 / RESET=DTR低</option>
-                    <option value="boot-dtr-low-reset-rts-high">BOOT=DTR低 / RESET=RTS高</option>
-                    <option value="boot-dtr-low-reset-rts-low">BOOT=DTR低 / RESET=RTS低</option>
-                    <option value="boot-dtr-high-reset-rts-high">BOOT=DTR高 / RESET=RTS高</option>
-                    <option value="boot-dtr-high-reset-rts-low">BOOT=DTR高 / RESET=RTS低</option>
+                    <option value="boot-rts-low-reset-dtr-high" data-i18n="resetDtrHighBootRtsLow">DTR高电平复位，RTS低电平进Bootloader</option>
+                    <option value="boot-rts-low-reset-dtr-low" data-i18n="resetDtrLowBootRtsLow">DTR低电平复位，RTS低电平进Bootloader</option>
+                    <option value="boot-rts-high-reset-dtr-high" data-i18n="resetDtrHighBootRtsHigh">DTR高电平复位，RTS高电平进Bootloader</option>
+                    <option value="boot-rts-high-reset-dtr-low" data-i18n="resetDtrLowBootRtsHigh">DTR低电平复位，RTS高电平进Bootloader</option>
+                    <option value="boot-dtr-low-reset-rts-high" data-i18n="resetRtsHighBootDtrLow">RTS高电平复位，DTR低电平进Bootloader</option>
+                    <option value="boot-dtr-low-reset-rts-low" data-i18n="resetRtsLowBootDtrLow">RTS低电平复位，DTR低电平进Bootloader</option>
+                    <option value="boot-dtr-high-reset-rts-high" data-i18n="resetRtsHighBootDtrHigh">RTS高电平复位，DTR高电平进Bootloader</option>
+                    <option value="boot-dtr-high-reset-rts-low" data-i18n="resetRtsLowBootDtrHigh">RTS低电平复位，DTR高电平进Bootloader</option>
                     <option value="custom" data-i18n="resetModeCustom">自定义 DTR/RTS 映射</option>
                     <option value="none" data-i18n="resetModeNone">不使用控制线 (手动按键进Boot)</option>
                   </select>

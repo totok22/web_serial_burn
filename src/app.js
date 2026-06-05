@@ -18,6 +18,14 @@ const i18n = {
     resetMode1: "通用：DTR高电平复位，RTS低电平进BootLoader",
     resetMode2: "CH340C 经典电路",
     resetModeCh340x: "CH340X 直连电路",
+    resetDtrHighBootRtsLow: "DTR高电平复位，RTS低电平进Bootloader",
+    resetDtrLowBootRtsLow: "DTR低电平复位，RTS低电平进Bootloader",
+    resetDtrHighBootRtsHigh: "DTR高电平复位，RTS高电平进Bootloader",
+    resetDtrLowBootRtsHigh: "DTR低电平复位，RTS高电平进Bootloader",
+    resetRtsHighBootDtrLow: "RTS高电平复位，DTR低电平进Bootloader",
+    resetRtsLowBootDtrLow: "RTS低电平复位，DTR低电平进Bootloader",
+    resetRtsHighBootDtrHigh: "RTS高电平复位，DTR高电平进Bootloader",
+    resetRtsLowBootDtrHigh: "RTS低电平复位，DTR高电平进Bootloader",
     circuitHelp: "电路说明",
     circuitCh340c: "CH340C 经典电路：RTS# 经 PNP 三极管控制 BOOT0，DTR# 经 NPN 三极管控制 RESET。DTR 与 RTS 同电平时两管均截止，引脚由板载上下拉保持；DTR 低 / RTS 高时三极管导通，拉低 RESET 同时拉高 BOOT0，MCU 复位后进入 Bootloader。",
     circuitCh340x: "CH340X 直连电路：DTR#、RTS# 不经三极管，直接连接 RESET 和 BOOT0。入口时序为先将 RTS# 置为 BOOT 有效电平，再用 DTR# 产生一个低脉冲触发 RESET，释放后 MCU 在 BOOT0 为高的状态下启动进入 Bootloader。",
@@ -67,9 +75,17 @@ const i18n = {
     resetMode1: "Generic: DTR high reset, RTS low bootloader",
     resetMode2: "Classic CH340C circuit",
     resetModeCh340x: "CH340X direct circuit",
+    resetDtrHighBootRtsLow: "DTR high resets, RTS low enters Bootloader",
+    resetDtrLowBootRtsLow: "DTR low resets, RTS low enters Bootloader",
+    resetDtrHighBootRtsHigh: "DTR high resets, RTS high enters Bootloader",
+    resetDtrLowBootRtsHigh: "DTR low resets, RTS high enters Bootloader",
+    resetRtsHighBootDtrLow: "RTS high resets, DTR low enters Bootloader",
+    resetRtsLowBootDtrLow: "RTS low resets, DTR low enters Bootloader",
+    resetRtsHighBootDtrHigh: "RTS high resets, DTR high enters Bootloader",
+    resetRtsLowBootDtrHigh: "RTS low resets, DTR high enters Bootloader",
     circuitHelp: "Circuit notes",
     circuitCh340c: "Classic CH340C circuit: RTS# drives a PNP transistor to control BOOT0, DTR# drives an NPN transistor to control RESET. When DTR and RTS are at the same level both transistors are off and the pins follow board pull-up/down resistors; when DTR is low / RTS is high the transistors conduct, pulling RESET low while driving BOOT0 high so the MCU resets into Bootloader.",
-    circuitCh340x: "CH340X direct circuit: DTR# and RTS# connect to RESET and BOOT0 without transistors. The entry sequence sets RTS# to the BOOT-active level first, then pulses DTR# low to trigger RESET; after release the MCU starts with BOOT0 high and enters Bootloader。",
+    circuitCh340x: "CH340X direct circuit: DTR# and RTS# connect to RESET and BOOT0 without transistors. The entry sequence sets RTS# to the BOOT-active level first, then pulses DTR# low to trigger RESET; after release the MCU starts with BOOT0 high and enters Bootloader.",
     resetModeCustom: "Custom DTR/RTS mapping",
     resetModeNone: "No control flow (Manual boot)",
     advancedSettings: "Advanced settings...",
@@ -677,13 +693,21 @@ els.firmwareInput.addEventListener("change", async () => {
 
 // ==== 手动控制台快捷动作 ====
 els.enterBootBtn.addEventListener("click", async () => {
-    log(`手动指令：按配置 ${options().resetLogic} 拉线进入 Bootloader...`);
-    await enterBootloader(state.transport, delay, options().resetConfig);
+    const config = options();
+    const [stage] = browserBootloaderEntryStages(config);
+    log(`手动指令：按配置 ${config.resetLogic} 拉线进入 Bootloader (${stage.name})...`);
+    await enterBootloaderStage(state.transport, delay, stage.config);
     log(`尝试完成，若电路正常芯片现已进入ISP等待。`);
 });
 els.resetRunBtn.addEventListener("click", async () => {
+    const config = options();
+    const [stage] = browserBootloaderEntryStages(config);
     log(`手动指令：复位并运行用户程序...`);
-    await resetToRun(state.transport, delay, options().resetConfig);
+    if (config.resetLogic === "ch340x") {
+      await resetCh340xWebToRun(state.transport, delay);
+    } else {
+      await resetToRunStage(state.transport, delay, stage.runConfig, config.resetConfig);
+    }
     log(`已发送复位放行信号。`);
 });
 
