@@ -1,12 +1,14 @@
 {
   "name": "web-mcu-burner",
   "version": "0.1.0",
-  "private": true,
+  "description": "Web Serial and CLI STM32 UART ISP flashing tool.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "web-mcu-burn": "./src/cli.js"
   },
   "scripts": {
+    "start": "python3 -m http.server 8080",
     "test": "node --test",
     "cli": "node ./src/cli.js"
   },

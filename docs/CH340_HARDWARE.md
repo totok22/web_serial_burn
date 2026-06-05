@@ -18,7 +18,7 @@ Node `serialport` 的 modem 线布尔值语义相反，因此 `src/node-serial-t
 - DTR 和 RTS 同电平时，三极管通常截止，引脚由板载上下拉决定。
 - DTR 和 RTS 一高一低时，电路会主动驱动 RESET 或 BOOT0。
 
-当前板子已验证入口序列：
+验证入口序列：
 
 1. RTS 低电平。
 2. DTR 低电平。
@@ -32,7 +32,7 @@ Node `serialport` 的 modem 线布尔值语义相反，因此 `src/node-serial-t
 stm32flash -b 115200 -i -rts,-dtr,dtr /dev/tty.usbserial-10
 ```
 
-已验证 CLI 命令：
+CLI 验证命令：
 
 ```bash
 node src/cli.js \
@@ -49,6 +49,8 @@ node src/cli.js \
 - STM32F10xxx Medium-density。
 - Bootloader `0x22`。
 - PID `0x0410`。
+
+![CH340C 经典电路](assets/circuit_of_ch340c.png)
 
 ## CH340X 直连电路
 
@@ -92,6 +94,16 @@ node src/cli.js \
 - PID `0x0413`。
 - CLI 确认有效入口组合 `RTS BOOT=true / DTR RESET=false`。
 - 擦除、写入、读回校验完成。
+
+![CH340X 直连电路](assets/circuit_of_ch340x.png)
+
+## 调试经验
+
+- `0x7F` 同步超时通常是没有进入 ROM Bootloader，不应先改擦写协议。
+- 收到持续乱码或 `0x43` 一类字节，通常是用户程序或其它 Bootloader 在输出。
+- Web Serial 和 Node `serialport` 的 DTR/RTS 布尔语义不同；同一块板在 Web 和 CLI 侧可能需要相反布尔值。
+- CH340X 板烧写后若端口保持打开，DTR/RTS 可能继续影响运行；Web 端提供完成后关闭串口选项。
+- 较大容量 STM32 的全片擦除可能超过 15 秒，当前 ACK 等待为 60 秒。
 
 ## 排查清单
 

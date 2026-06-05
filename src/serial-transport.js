@@ -118,17 +118,30 @@ function isCh340xMode(modeOrConfig) {
   return modeOrConfig === "ch340x";
 }
 
+const RESET_PRESETS = {
+  "dtr-high-rts-low": { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-false" },
+  "dtr-low-rts-high": { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-true" },
+  "boot-rts-low-reset-dtr-low": { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-true" },
+  "boot-rts-low-reset-dtr-high": { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-false" },
+  "boot-rts-high-reset-dtr-low": { boot0High: "rts-false", boot0Low: "rts-true", resetAssert: "dtr-true" },
+  "boot-rts-high-reset-dtr-high": { boot0High: "rts-false", boot0Low: "rts-true", resetAssert: "dtr-false" },
+  "boot-dtr-low-reset-rts-low": { boot0High: "dtr-true", boot0Low: "dtr-false", resetAssert: "rts-true" },
+  "boot-dtr-low-reset-rts-high": { boot0High: "dtr-true", boot0Low: "dtr-false", resetAssert: "rts-false" },
+  "boot-dtr-high-reset-rts-low": { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-true" },
+  "boot-dtr-high-reset-rts-high": { boot0High: "dtr-false", boot0Low: "dtr-true", resetAssert: "rts-false" },
+};
+
 function normalizeResetConfig(modeOrConfig) {
-  if (!modeOrConfig || modeOrConfig === "dtr-high-rts-low") {
-    return { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-false" };
-  }
-  if (modeOrConfig === "dtr-low-rts-high") {
-    return { boot0High: "rts-true", boot0Low: "rts-false", resetAssert: "dtr-true" };
+  if (!modeOrConfig) {
+    return RESET_PRESETS["dtr-high-rts-low"];
   }
   if (isCh340xMode(modeOrConfig)) {
     return null;
   }
   if (modeOrConfig === "none") return null;
+  if (RESET_PRESETS[modeOrConfig]) {
+    return RESET_PRESETS[modeOrConfig];
+  }
   if (typeof modeOrConfig === "object") {
     const boot0High = modeOrConfig.boot0High ?? "dtr-false";
     return {

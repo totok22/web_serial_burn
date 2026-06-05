@@ -16,11 +16,11 @@ const i18n = {
     noFile: "未加载文件",
     resetLogicTitle: "DTR/RTS 复位模式",
     resetMode1: "通用：DTR高电平复位，RTS低电平进BootLoader",
-    resetMode2: "CH340C 经典三极管电路 (已验证)",
+    resetMode2: "CH340C 经典电路",
     resetModeCh340x: "CH340X 直连电路",
     circuitHelp: "电路说明",
-    circuitCh340c: "CH340C 经典三极管电路：DTR/RTS 经过外部三极管控制 RESET 和 BOOT0，已验证入口序列为 RTS低电平、DTR低电平复位、DTR高电平释放。",
-    circuitCh340x: "CH340X 直连电路：DTR#/RTS# 直接参与 RESET/BOOT0 控制，使用先压住复位并建立 BOOT 条件、再释放复位的自动时序。",
+    circuitCh340c: "CH340C 经典电路：RTS# 经 PNP 三极管控制 BOOT0，DTR# 经 NPN 三极管控制 RESET。DTR 与 RTS 同电平时两管均截止，引脚由板载上下拉保持；DTR 低 / RTS 高时三极管导通，拉低 RESET 同时拉高 BOOT0，MCU 复位后进入 Bootloader。",
+    circuitCh340x: "CH340X 直连电路：DTR#、RTS# 不经三极管，直接连接 RESET 和 BOOT0。入口时序为先将 RTS# 置为 BOOT 有效电平，再用 DTR# 产生一个低脉冲触发 RESET，释放后 MCU 在 BOOT0 为高的状态下启动进入 Bootloader。",
     resetModeCustom: "自定义 DTR/RTS 映射",
     resetModeNone: "不使用控制线 (手动按键进Boot)",
     advancedSettings: "高级设置...",
@@ -33,6 +33,7 @@ const i18n = {
     doErase: "烧录前全片擦除",
     doVerify: "烧录后完整校验（较慢）",
     doRun: "烧录成功后复位并运行程序",
+    doClose: "完成后关闭串口",
     doUnlock: "若发生读保护，自动解除保护 (将擦除全片)",
     startProgram: "开始编程",
     openPort: "开启串口",
@@ -46,7 +47,7 @@ const i18n = {
     stepWrite: "分块写入固件数据",
     stepVerify: "读回固件进行一致性校验",
     stepRun: "复位并启动用户程序",
-    manualConsole: "调试控制台",
+    manualConsole: "手动控制台",
     forceBoot: "强驱进Boot",
     forceRun: "强驱复位运行",
     sendHex: "发送 HEX",
@@ -64,11 +65,11 @@ const i18n = {
     noFile: "No file loaded",
     resetLogicTitle: "DTR/RTS reset mode",
     resetMode1: "Generic: DTR high reset, RTS low bootloader",
-    resetMode2: "Classic CH340C transistor circuit (verified)",
+    resetMode2: "Classic CH340C circuit",
     resetModeCh340x: "CH340X direct circuit",
     circuitHelp: "Circuit notes",
-    circuitCh340c: "Classic CH340C transistor circuit: DTR/RTS drive RESET and BOOT0 through external transistors. Verified entry sequence: RTS low, DTR low reset, DTR high release.",
-    circuitCh340x: "CH340X direct circuit: DTR#/RTS# directly participate in RESET/BOOT0 control. The preset holds reset while setting BOOT, then releases reset automatically.",
+    circuitCh340c: "Classic CH340C circuit: RTS# drives a PNP transistor to control BOOT0, DTR# drives an NPN transistor to control RESET. When DTR and RTS are at the same level both transistors are off and the pins follow board pull-up/down resistors; when DTR is low / RTS is high the transistors conduct, pulling RESET low while driving BOOT0 high so the MCU resets into Bootloader.",
+    circuitCh340x: "CH340X direct circuit: DTR# and RTS# connect to RESET and BOOT0 without transistors. The entry sequence sets RTS# to the BOOT-active level first, then pulses DTR# low to trigger RESET; after release the MCU starts with BOOT0 high and enters Bootloader。",
     resetModeCustom: "Custom DTR/RTS mapping",
     resetModeNone: "No control flow (Manual boot)",
     advancedSettings: "Advanced settings...",
@@ -81,6 +82,7 @@ const i18n = {
     doErase: "Mass erase before writing",
     doVerify: "Full verify after writing (slower)",
     doRun: "Reset and run program upon success",
+    doClose: "Close port after completion",
     doUnlock: "Auto-unlock readout protection (erases chip)",
     startProgram: "Start Programming",
     openPort: "Open Port",
@@ -94,7 +96,7 @@ const i18n = {
     stepWrite: "Write firmware data blocks",
     stepVerify: "Verify written data consistency",
     stepRun: "Reset and start user program",
-    manualConsole: "Debug Console",
+    manualConsole: "Manual Console",
     forceBoot: "Force Boot",
     forceRun: "Force Run",
     sendHex: "Send HEX",
@@ -106,6 +108,7 @@ const i18n = {
 
 const state = {
   lang: localStorage.getItem("lang") || "zh",
+  theme: localStorage.getItem("theme") || "dark",
   port: null,
   transport: null,
   bootloader: null,
@@ -115,8 +118,8 @@ const state = {
 };
 
 const els = {
-  languageSelect: $("languageSelect"),
-  supportStatus: $("supportStatus"),
+  themeToggle: $("themeToggle"),
+  languageToggle: $("languageToggle"),
   portName: $("portName"),
   targetProfile: $("targetProfile"),
   baudRate: $("baudRate"),
@@ -133,6 +136,7 @@ const els = {
   doErase: $("doErase"),
   doVerify: $("doVerify"),
   doRun: $("doRun"),
+  doClose: $("doClose"),
   doUnlock: $("doUnlock"),
   selectPortBtn: $("selectPortBtn"),
   connectBtn: $("connectBtn"),
@@ -140,10 +144,9 @@ const els = {
   fullProcessBtn: $("fullProcessBtn"),
   clearLogBtn: $("clearLogBtn"),
   log: $("log"),
-  steps: document.querySelectorAll("#steps li"),
   progressBar: $("progressBar"),
 
-  // 调试控制台元素
+  // 手动控制台元素
   enterBootBtn: $("enterBootBtn"),
   resetRunBtn: $("resetRunBtn"),
   dtrLowBtn: $("dtrLowBtn"),
@@ -159,9 +162,13 @@ function t(key) {
   return i18n[state.lang][key] ?? (i18n.en[key] ?? key);
 }
 
+function applyTheme() {
+  document.documentElement.dataset.theme = state.theme;
+}
+
 function applyLanguage() {
   document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
-  els.languageSelect.value = state.lang;
+  els.languageToggle.querySelector(".lang-text").textContent = state.lang === "zh" ? "EN" : "中";
   document.querySelectorAll("[data-i18n]").forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
@@ -182,25 +189,6 @@ function log(message, level = "info") {
 
 function setProgress(value) {
   els.progressBar.style.width = `${Math.max(0, Math.min(100, value))}%`;
-}
-
-function resetSteps() {
-    els.steps.forEach(step => {
-        step.dataset.status = "";
-    });
-}
-
-function setStep(name, status) {
-  const step = Array.from(els.steps).find(el => el.dataset.step === name);
-  if (step) {
-      // clear active from others if we are setting to active
-      if (status === "active") {
-          els.steps.forEach(s => {
-              if (s.dataset.status === "active") s.dataset.status = "done";
-          });
-      }
-      step.dataset.status = status;
-  }
 }
 
 function parseNumber(value, label) {
@@ -229,6 +217,7 @@ function options() {
     doErase: els.doErase.checked,
     doVerify: els.doVerify.checked,
     doRun: els.doRun.checked,
+    doClose: els.doClose.checked,
     doUnlock: els.doUnlock.checked,
   };
 }
@@ -398,8 +387,6 @@ async function syncBootloaderIgnoringNoise(transport, timeout) {
 
 function updateUi() {
   const supported = "serial" in navigator;
-  els.supportStatus.textContent = supported ? t("serialOk") : t("serialNo");
-  els.supportStatus.dataset.ok = supported ? "true" : "false";
 
   const btnPort = els.selectPortBtn;
   if(state.connected) {
@@ -422,10 +409,12 @@ function updateUi() {
 }
 
 function applySavedPreferences() {
-  const savedVerify = localStorage.getItem("doVerify");
-  if (savedVerify !== null) {
-    els.doVerify.checked = savedVerify === "true";
-  }
+  ["doVerify", "doClose"].forEach((key) => {
+    const saved = localStorage.getItem(key);
+    if (saved !== null && els[key]) {
+      els[key].checked = saved === "true";
+    }
+  });
 }
 
 async function requestPort() {
@@ -486,7 +475,6 @@ async function disconnect() {
   state.port = null;
   state.transport = null;
   state.bootloader = null;
-  resetSteps();
   setProgress(0);
   log("⛔ 串口已关闭。");
   updateUi();
@@ -510,14 +498,13 @@ async function runAutoProgram() {
     const config = options();
     if (!state.connected || !state.bootloader || !state.firmware) return;
     if (config.target !== "stm32-uart") {
-        log("当前自动烧录流程仅实现 STM32 UART ISP。其他目标请使用调试控制台或后续协议适配器。", "warn");
+        log("当前自动烧录流程仅实现 STM32 UART ISP。其他目标请使用手动控制台或后续协议适配器。", "warn");
         return;
     }
 
     // UI 锁定
     els.fullProcessBtn.disabled = true;
     setProgress(0);
-    resetSteps();
     els.log.innerHTML += "<br/>========== 开始一键烧写流程 ==========\n";
     let selectedRunConfig = null;
     let shouldClosePortAfterRun = false;
@@ -557,20 +544,14 @@ async function runAutoProgram() {
 
     try {
         // 第一步: 端口本身我们已经打开了
-        setStep("port", "done");
 
         // 第二步: 通过 DTR/RTS 唤起 Bootloader
-        setStep("boot", "active");
         log(`1. 正在复位单片机并进入 ISP 模式 (模式: ${config.resetLogic})...`);
-        setStep("boot", "done");
 
         // 第三步: 测试波特率 & 握手
-        setStep("sync", "active");
         await enterAndSyncBootloader();
-        setStep("sync", "done");
 
         // 第四步: 擦除
-        setStep("erase", "active");
         if (config.doErase) {
             log(`3. 正在执行芯片擦除...`);
             try {
@@ -593,36 +574,29 @@ async function runAutoProgram() {
         } else {
             log(`3. (跳过擦除步骤)`);
         }
-        setStep("erase", "done");
         setProgress(35);
 
         // 第五步: 分块写入固件 (耗时主力操作)
-        setStep("write", "active");
         log(`4. 正在往起始地址 ${toHex(config.flashBase, 8)} 烧写 ${state.firmwareName}...`);
         await state.bootloader.writeMemory(config.flashBase, state.firmware, config.packetSize);
         log(`==> 烧写完成！`);
-        setStep("write", "done");
         setProgress(70);
 
         // 第六步: 校验文件
         if (config.doVerify) {
-            setStep("verify", "active");
             log(`5. 正在读回数据并与原固件交叉比对校验...`);
             await state.bootloader.verify(config.flashBase, state.firmware, config.packetSize);
             log(`==> 校验通过! 数据 100% 吻合。`);
         } else {
             log(`5. (跳过数据校验步骤)`);
         }
-        setStep("verify", "done");
         setProgress(95);
 
         // 第七步: 复位运行
         if (config.doRun) {
-            setStep("run", "active");
             if (config.resetLogic === "ch340x") {
                 log(`6. 正在按 CH340X 运行时序复位用户程序...`);
                 await resetCh340xWebToRun(state.transport, delay);
-                shouldClosePortAfterRun = true;
                 log(`==> 已发送硬件 RESET 脉冲，请观察板子是否正常运行。`);
             } else {
                 log(`6. 正在跳转运行用户程序并释放 BOOT 条件...`);
@@ -639,25 +613,25 @@ async function runAutoProgram() {
         } else {
             log(`6. (烧写完毕，程序停留在 Bootloader 等待手动复位)`);
         }
-        setStep("run", "done");
         setProgress(100);
 
-        log(`🎉 任务圆满完成！(Total Success)`, "info");
+        log(`==> 任务完成。`, "info");
+        shouldClosePortAfterRun = config.doClose;
         if (shouldClosePortAfterRun) {
             await closePortAfterRun();
         }
 
     } catch (e) {
         log(`❌ 烧写流程终止: ${e.message}`, "error");
-        setStep("port", "error"); // 标记当前失败
     } finally {
         els.fullProcessBtn.disabled = false;
+        updateUi();
     }
 }
 
 // ============== 绑定事件 ==============
-els.languageSelect.addEventListener("change", () => {
-    state.lang = els.languageSelect.value;
+els.languageToggle.addEventListener("click", () => {
+    state.lang = state.lang === "zh" ? "en" : "zh";
     localStorage.setItem("lang", state.lang);
     applyLanguage();
 });
@@ -670,6 +644,9 @@ els.fullProcessBtn.addEventListener("click", runAutoProgram);
 els.clearLogBtn.addEventListener("click", () => els.log.innerHTML = "");
 els.doVerify.addEventListener("change", () => {
     localStorage.setItem("doVerify", String(els.doVerify.checked));
+});
+els.doClose.addEventListener("change", () => {
+    localStorage.setItem("doClose", String(els.doClose.checked));
 });
 
 els.firmwareInput.addEventListener("change", async () => {
@@ -695,14 +672,14 @@ els.firmwareInput.addEventListener("change", async () => {
   updateUi();
 });
 
-// ==== 调试控制台快捷动作 ====
+// ==== 手动控制台快捷动作 ====
 els.enterBootBtn.addEventListener("click", async () => {
-    log(`调试指令：尝试强制按配置 ${options().resetLogic} 拉线进Boot...`);
+    log(`手动指令：按配置 ${options().resetLogic} 拉线进入 Bootloader...`);
     await enterBootloader(state.transport, delay, options().resetConfig);
     log(`尝试完成，若电路正常芯片现已进入ISP等待。`);
 });
 els.resetRunBtn.addEventListener("click", async () => {
-    log(`调试指令：尝试强制复位跑起用户程序...`);
+    log(`手动指令：复位并运行用户程序...`);
     await resetToRun(state.transport, delay, options().resetConfig);
     log(`已发送复位放行信号。`);
 });
@@ -733,6 +710,29 @@ els.dtrHighBtn.addEventListener("click", async () => { log("DTR = 3.3V (False)")
 els.rtsLowBtn.addEventListener("click", async () => { log("RTS = 0V (True)"); await state.transport.setSignals({ requestToSend: true }); });
 els.rtsHighBtn.addEventListener("click", async () => { log("RTS = 3.3V (False)"); await state.transport.setSignals({ requestToSend: false }); });
 
+// ==== 电路图点击放大 ====
+document.querySelectorAll(".circuit-images img").forEach((img) => {
+  img.addEventListener("click", () => {
+    const overlay = document.createElement("div");
+    overlay.className = "lightbox-overlay";
+    const clone = document.createElement("img");
+    clone.src = img.src;
+    clone.alt = img.alt;
+    overlay.appendChild(clone);
+    overlay.addEventListener("click", () => overlay.remove());
+    document.addEventListener("keydown", function esc(e) {
+      if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", esc); }
+    });
+    document.body.appendChild(overlay);
+  });
+});
+
+els.themeToggle.addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("theme", state.theme);
+  applyTheme();
+});
+
 window.addEventListener("beforeunload", () => {
   if (state.connected) state.transport?.close();
 });
@@ -740,5 +740,6 @@ window.addEventListener("beforeunload", () => {
 if (!("serial" in navigator)) {
   log("当前浏览器环境不支持 Web Serial（请使用新版 Edge 或 Chrome，并且必须在 HTTPS 或 localhost 环境下打开）", "warn");
 }
+applyTheme();
 applySavedPreferences();
 applyLanguage();

@@ -41,6 +41,26 @@ test("enterBootloader applies CH340X direct timing", async () => {
   ]);
 });
 
+test("enterBootloader applies generic BOOT/RESET preset", async () => {
+  const calls = [];
+  const transport = {
+    async setSignals(signals) {
+      calls.push(["signals", signals]);
+    },
+  };
+
+  await enterBootloader(transport, async (ms) => calls.push(["delay", ms]), "boot-dtr-high-reset-rts-low");
+
+  assert.deepEqual(calls, [
+    ["signals", { dataTerminalReady: false }],
+    ["delay", 100],
+    ["signals", { requestToSend: true }],
+    ["delay", 100],
+    ["signals", { requestToSend: false }],
+    ["delay", 800],
+  ]);
+});
+
 test("resetToRun applies CH340X run timing", async () => {
   const calls = [];
   const transport = {

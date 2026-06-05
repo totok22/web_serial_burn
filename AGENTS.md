@@ -12,7 +12,7 @@
 - `src/cli.js`：Node CLI 烧写入口。
 - `tests/`：Node 测试。
 - `README.md`：使用说明。
-- `计划.md`：简洁实现计划和已验证协议记录。
+- `docs/STM32_PROTOCOL.md`：STM32 USART Bootloader 协议要点。
 - `CHANGELOG.md`：变更记录。
 - `TODO.md`：后续任务。
 - `docs/CH340_HARDWARE.md`：CH340C/CH340X 电路和时序说明。
@@ -69,7 +69,7 @@ node src/cli.js \
 
 ## 文档
 
-- 同步维护 `README.md`、`计划.md`、`CHANGELOG.md`、`TODO.md`、`docs/CH340_HARDWARE.md`。
+- 同步维护 `README.md`、`CHANGELOG.md`、`TODO.md`、`docs/CH340_HARDWARE.md`、`docs/STM32_PROTOCOL.md`。
 - 文档使用中文。
 - 内容要凝练，避免重复背景、营销式表述和未验证结论。
 - 硬件变更必须记录板子、端口、固件、命令和结果。
