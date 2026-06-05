@@ -619,6 +619,36 @@ button:disabled {
   font-family: var(--font-mono);
 }
 
+/* ---- Footer ---- */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 20px 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
+.footer-sep {
+  opacity: 0.4;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}
+
 @media (max-width: 860px) {
   .control-grid {
     grid-template-columns: 1fr;

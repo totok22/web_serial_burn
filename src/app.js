@@ -155,7 +155,10 @@ const els = {
   rtsHighBtn: $("rtsHighBtn"),
   hexInput: $("hexInput"),
   sendHexBtn: $("sendHexBtn"),
-  readByteBtn: $("readByteBtn")
+  readByteBtn: $("readByteBtn"),
+  circuitInfoBtn: $("circuitInfoBtn"),
+  circuitDialog: $("circuitDialog"),
+  circuitDialogClose: $("circuitDialogClose"),
 };
 
 function t(key) {
@@ -725,6 +728,13 @@ document.querySelectorAll(".circuit-images img").forEach((img) => {
     });
     document.body.appendChild(overlay);
   });
+});
+
+// Circuit dialog
+els.circuitInfoBtn.addEventListener("click", () => els.circuitDialog.showModal());
+els.circuitDialogClose.addEventListener("click", () => els.circuitDialog.close());
+els.circuitDialog.addEventListener("click", (e) => {
+  if (e.target === els.circuitDialog) els.circuitDialog.close();
 });
 
 els.themeToggle.addEventListener("click", () => {
