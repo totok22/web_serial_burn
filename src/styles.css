@@ -46,7 +46,9 @@
 :root .icon-sun  { display: none; }
 :root .icon-moon { display: inline; }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -55,20 +57,12 @@ body {
   min-height: 100svh;
   background: var(--bg);
   color: var(--text);
-  transition: background 0.3s ease, color 0.3s ease;
 }
 
-.panel,
-button,
-input,
-select,
-.file-drop,
-#log,
-.option-list,
-.advanced-settings,
-.app-footer,
-.circuit-dialog {
-  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+[data-theme] *,
+[data-theme] *::before,
+[data-theme] *::after {
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 button,
