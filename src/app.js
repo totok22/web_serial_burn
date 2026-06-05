@@ -1,4 +1,4 @@
-import { Stm32Bootloader, toHex } from "./stm32.js";
+import { ACK, COMMANDS, NACK, SYNC, Stm32Bootloader, addressPacket, toHex } from "./stm32.js";
 import { SerialTransport, bootloaderEntryStages, enterBootloader, resetToRun } from "./serial-transport.js";
 import { loadFirmwareFile } from "./firmware.js";
 
@@ -19,7 +19,7 @@ const i18n = {
     resetMode2: "CH340C 经典三极管电路 (已验证)",
     resetModeCh340x: "CH340X 直连电路",
     circuitHelp: "电路说明",
-    circuitCh340c: "CH340C 经典三极管电路：DTR/RTS 经过外部三极管控制 RESET 和 BOOT0，已验证使用 DTR低电平复位、RTS高电平进BootLoader。",
+    circuitCh340c: "CH340C 经典三极管电路：DTR/RTS 经过外部三极管控制 RESET 和 BOOT0，已验证入口序列为 RTS低电平、DTR低电平复位、DTR高电平释放。",
     circuitCh340x: "CH340X 直连电路：DTR#/RTS# 直接参与 RESET/BOOT0 控制，使用先压住复位并建立 BOOT 条件、再释放复位的自动时序。",
     resetModeCustom: "自定义 DTR/RTS 映射",
     resetModeNone: "不使用控制线 (手动按键进Boot)",
@@ -31,7 +31,7 @@ const i18n = {
     boot0: "BOOT0 高电平信号",
     reset: "RESET 触发信号",
     doErase: "烧录前全片擦除",
-    doVerify: "烧录后校验数据",
+    doVerify: "烧录后完整校验（较慢）",
     doRun: "烧录成功后复位并运行程序",
     doUnlock: "若发生读保护，自动解除保护 (将擦除全片)",
     startProgram: "开始编程",
@@ -67,7 +67,7 @@ const i18n = {
     resetMode2: "Classic CH340C transistor circuit (verified)",
     resetModeCh340x: "CH340X direct circuit",
     circuitHelp: "Circuit notes",
-    circuitCh340c: "Classic CH340C transistor circuit: DTR/RTS drive RESET and BOOT0 through external transistors. Verified with DTR-low reset, RTS-high bootloader.",
+    circuitCh340c: "Classic CH340C transistor circuit: DTR/RTS drive RESET and BOOT0 through external transistors. Verified entry sequence: RTS low, DTR low reset, DTR high release.",
     circuitCh340x: "CH340X direct circuit: DTR#/RTS# directly participate in RESET/BOOT0 control. The preset holds reset while setting BOOT, then releases reset automatically.",
     resetModeCustom: "Custom DTR/RTS mapping",
     resetModeNone: "No control flow (Manual boot)",
@@ -79,7 +79,7 @@ const i18n = {
     boot0: "BOOT0 high signal",
     reset: "RESET assert signal",
     doErase: "Mass erase before writing",
-    doVerify: "Verify data after writing",
+    doVerify: "Full verify after writing (slower)",
     doRun: "Reset and run program upon success",
     doUnlock: "Auto-unlock readout protection (erases chip)",
     startProgram: "Start Programming",
@@ -233,6 +233,152 @@ function options() {
   };
 }
 
+function browserBootloaderEntryStages(config) {
+  const stages = bootloaderEntryStages(config.resetConfig);
+  if (config.resetLogic !== "dtr-low-rts-high") return stages;
+
+  const explicitStages = [
+    makeBrowserResetStage("RTS BOOT=true / DTR RESET=false", "rts", true, "dtr", false),
+    makeBrowserResetStage("RTS BOOT=true / DTR RESET=true", "rts", true, "dtr", true),
+    makeBrowserResetStage("RTS BOOT=false / DTR RESET=true", "rts", false, "dtr", true),
+    makeBrowserResetStage("RTS BOOT=false / DTR RESET=false", "rts", false, "dtr", false),
+    makeBrowserResetStage("DTR BOOT=true / RTS RESET=true", "dtr", true, "rts", true),
+    makeBrowserResetStage("DTR BOOT=true / RTS RESET=false", "dtr", true, "rts", false),
+    makeBrowserResetStage("DTR BOOT=false / RTS RESET=true", "dtr", false, "rts", true),
+    makeBrowserResetStage("DTR BOOT=false / RTS RESET=false", "dtr", false, "rts", false),
+  ];
+
+  return [
+    ...explicitStages,
+    ...stages,
+  ];
+}
+
+function signalForLine(line, value) {
+  return line === "dtr"
+    ? { dataTerminalReady: value }
+    : { requestToSend: value };
+}
+
+function combinedSignals(...choices) {
+  return choices.reduce((signals, [line, value]) => ({
+    ...signals,
+    ...signalForLine(line, value),
+  }), {});
+}
+
+function makeBrowserResetStage(name, bootLine, bootValue, resetLine, resetAssertValue) {
+  const resetReleaseValue = !resetAssertValue;
+  const idleBootValue = !bootValue;
+
+  return {
+    name,
+    config: [
+      {
+        signals: combinedSignals([bootLine, idleBootValue], [resetLine, resetReleaseValue]),
+        delayMs: 150,
+      },
+      {
+        signals: combinedSignals([bootLine, bootValue], [resetLine, resetReleaseValue]),
+        delayMs: 150,
+      },
+      {
+        signals: combinedSignals([bootLine, bootValue], [resetLine, resetAssertValue]),
+        delayMs: 150,
+      },
+      {
+        signals: combinedSignals([bootLine, bootValue], [resetLine, resetReleaseValue]),
+        delayMs: 1000,
+      },
+    ],
+    runConfig: [
+      {
+        signals: combinedSignals([bootLine, idleBootValue], [resetLine, resetReleaseValue]),
+        delayMs: 150,
+      },
+      {
+        signals: combinedSignals([bootLine, idleBootValue], [resetLine, resetAssertValue]),
+        delayMs: 150,
+      },
+      {
+        signals: combinedSignals([bootLine, idleBootValue], [resetLine, resetReleaseValue]),
+        delayMs: 1000,
+      },
+    ],
+  };
+}
+
+async function enterBootloaderStage(transport, delay, stageConfig) {
+  if (!Array.isArray(stageConfig)) {
+    await enterBootloader(transport, delay, stageConfig);
+    return;
+  }
+
+  for (const step of stageConfig) {
+    await transport.setSignals(step.signals);
+    await delay(step.delayMs);
+  }
+}
+
+async function resetToRunStage(transport, delay, stageConfig, fallbackConfig) {
+  if (!Array.isArray(stageConfig)) {
+    await resetToRun(transport, delay, fallbackConfig);
+    return;
+  }
+
+  for (const step of stageConfig) {
+    await transport.setSignals(step.signals);
+    await delay(step.delayMs);
+  }
+}
+
+async function releaseBootForRunStage(transport, delay, stageConfig) {
+  if (!Array.isArray(stageConfig) || stageConfig.length === 0) return;
+  const [releaseStep] = stageConfig;
+  await transport.setSignals(releaseStep.signals);
+  await delay(releaseStep.delayMs);
+}
+
+async function goToAddress(bootloader, transport, address) {
+  if (typeof bootloader.go === "function") {
+    await bootloader.go(address);
+    return;
+  }
+
+  await bootloader.sendCommand(COMMANDS.GO);
+  await transport.write(addressPacket(address));
+  await bootloader.expectAck();
+}
+
+async function syncBootloaderIgnoringNoise(transport, timeout) {
+  const deadline = Date.now() + timeout;
+  const ignored = [];
+  await transport.flushReadBuffer();
+  await transport.write([SYNC]);
+
+  while (Date.now() < deadline) {
+    const remaining = Math.max(1, deadline - Date.now());
+    let byte;
+    try {
+      byte = (await transport.readExact(1, remaining))[0];
+    } catch (error) {
+      if (ignored.length > 0) {
+        const preview = ignored.slice(0, 16).map((value) => toHex(value)).join(" ");
+        const suffixText = ignored.length > 16 ? " ..." : "";
+        throw new Error(`读取超时 (等待 Bootloader ACK, 已忽略 ${ignored.length} 字节非 Bootloader 响应: ${preview}${suffixText})`);
+      }
+      throw error;
+    }
+    if (byte === ACK) return ignored;
+    if (byte === NACK) throw new Error("Bootloader returned NACK");
+    ignored.push(byte);
+  }
+
+  const preview = ignored.slice(0, 16).map((value) => toHex(value)).join(" ");
+  const suffixText = ignored.length > 16 ? " ..." : "";
+  throw new Error(`读取超时 (等待 Bootloader ACK, 已忽略 ${ignored.length} 字节非 Bootloader 响应: ${preview}${suffixText})`);
+}
+
 function updateUi() {
   const supported = "serial" in navigator;
   els.supportStatus.textContent = supported ? t("serialOk") : t("serialNo");
@@ -256,6 +402,13 @@ function updateUi() {
   [els.enterBootBtn, els.resetRunBtn, els.dtrLowBtn, els.dtrHighBtn, els.rtsLowBtn, els.rtsHighBtn, els.sendHexBtn, els.readByteBtn].forEach((button) => {
     if(button) button.disabled = !state.connected;
   });
+}
+
+function applySavedPreferences() {
+  const savedVerify = localStorage.getItem("doVerify");
+  if (savedVerify !== null) {
+    els.doVerify.checked = savedVerify === "true";
+  }
 }
 
 async function requestPort() {
@@ -337,22 +490,39 @@ async function runAutoProgram() {
     setProgress(0);
     resetSteps();
     els.log.innerHTML += "<br/>========== 开始一键烧写流程 ==========\n";
+    let selectedRunConfig = null;
 
     async function enterAndSyncBootloader() {
-        const stages = bootloaderEntryStages(config.resetConfig);
+        const stages = browserBootloaderEntryStages(config);
         let info = null;
         let chipId = null;
+        let lastError = null;
         for (const [index, stage] of stages.entries()) {
             const suffix = stages.length > 1 ? ` (${stage.name}, ${index + 1}/${stages.length})` : "";
             log(`2.${index + 1} 正在进入 Bootloader 并同步${suffix}...`);
-            await enterBootloader(state.transport, delay, stage.config);
-            await state.transport.flushReadBuffer();
-            await state.bootloader.sync();
-            info = await state.bootloader.getCommands();
-            chipId = await state.bootloader.getId();
-            log(`==> 同步成功${suffix}: Bootloader ${toHex(info.version)}, PID ${toHex(chipId, 4)}`);
+            try {
+                await enterBootloaderStage(state.transport, delay, stage.config);
+                const ignored = await syncBootloaderIgnoringNoise(state.transport, config.timeout);
+                if (ignored.length > 0) {
+                    const preview = ignored.slice(0, 16).map((byte) => toHex(byte)).join(" ");
+                    const suffixText = ignored.length > 16 ? " ..." : "";
+                    log(`⚠️ 同步前忽略了 ${ignored.length} 字节非 Bootloader 响应: ${preview}${suffixText}`, "warn");
+                }
+                info = await state.bootloader.getCommands();
+                chipId = await state.bootloader.getId();
+                selectedRunConfig = stage.runConfig ?? null;
+                log(`==> 同步成功${suffix}: Bootloader ${toHex(info.version)}, PID ${toHex(chipId, 4)}`);
+                return { info, chipId };
+            } catch (error) {
+                lastError = error;
+                if (index < stages.length - 1) {
+                    log(`⚠️ 同步失败${suffix}: ${error.message}，尝试下一组控制线时序...`, "warn");
+                    continue;
+                }
+                throw error;
+            }
         }
-        return { info, chipId };
+        throw lastError ?? new Error("Bootloader 同步失败");
     }
 
     try {
@@ -419,9 +589,16 @@ async function runAutoProgram() {
         // 第七步: 复位运行
         if (config.doRun) {
             setStep("run", "active");
-            log(`6. 正在拉低 RESET 脚，复位并自动启动用户程序程序...`);
-            await resetToRun(state.transport, delay, config.resetConfig);
-            log(`==> 操作完毕！请观察板子是否正常运行。`);
+            log(`6. 正在释放 BOOT 条件并跳转运行用户程序...`);
+            try {
+                await releaseBootForRunStage(state.transport, delay, selectedRunConfig);
+                await goToAddress(state.bootloader, state.transport, config.flashBase);
+                log(`==> 已通过 Bootloader GO 跳转到 ${toHex(config.flashBase, 8)}，请观察板子是否正常运行。`);
+            } catch (error) {
+                log(`⚠️ GO 跳转失败: ${error.message}，改用硬件 RESET 脉冲...`, "warn");
+                await resetToRunStage(state.transport, delay, selectedRunConfig, config.resetConfig);
+                log(`==> 已发送硬件 RESET 脉冲，请观察板子是否正常运行。`);
+            }
         } else {
             log(`6. (烧写完毕，程序停留在 Bootloader 等待手动复位)`);
         }
@@ -451,6 +628,9 @@ els.connectBtn.addEventListener("click", connect);
 els.disconnectBtn.addEventListener("click", disconnect);
 els.fullProcessBtn.addEventListener("click", runAutoProgram);
 els.clearLogBtn.addEventListener("click", () => els.log.innerHTML = "");
+els.doVerify.addEventListener("change", () => {
+    localStorage.setItem("doVerify", String(els.doVerify.checked));
+});
 
 els.firmwareInput.addEventListener("change", async () => {
   const file = els.firmwareInput.files[0];
@@ -520,4 +700,5 @@ window.addEventListener("beforeunload", () => {
 if (!("serial" in navigator)) {
   log("当前浏览器环境不支持 Web Serial（请使用新版 Edge 或 Chrome，并且必须在 HTTPS 或 localhost 环境下打开）", "warn");
 }
+applySavedPreferences();
 applyLanguage();

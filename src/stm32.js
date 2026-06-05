@@ -109,6 +109,12 @@ export class Stm32Bootloader {
     await this.expectAck(15000);
   }
 
+  async go(address) {
+    await this.sendCommand(COMMANDS.GO);
+    await this.transport.write(addressPacket(address));
+    await this.expectAck();
+  }
+
   async writeMemory(address, bytes, packetSize = 256) {
     let offset = 0;
     while (offset < bytes.length) {
