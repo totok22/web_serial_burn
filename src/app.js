@@ -8,7 +8,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const i18n = {
   zh: {
     eyebrow: "Web Serial / STM32 UART ISP",
-    appTitle: "Web MCU Burner",
+    appTitle: "SerialFlash",
     settingsTitle: "烧写设置",
     target: "目标协议",
     selectPort: "请选择串口",
@@ -65,7 +65,7 @@ const i18n = {
   },
   en: {
     eyebrow: "Web Serial / STM32 UART ISP",
-    appTitle: "Web MCU Burner",
+    appTitle: "SerialFlash",
     settingsTitle: "Programming Settings",
     target: "Target protocol",
     selectPort: "Select Serial Port",
