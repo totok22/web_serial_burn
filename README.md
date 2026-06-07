@@ -1,4 +1,4 @@
-# Web MCU Burner
+# SerialFlash
 
 基于 Web Serial 和 STM32 USART Bootloader 的浏览器烧写工具，同时提供 Node.js CLI 便于硬件验证和自动化烧写。
 
@@ -8,6 +8,7 @@
 - 支持 `.bin` 和 Intel HEX `.hex` 固件。
 - 内置 CH340C 经典电路、CH340X 直连电路和常见 DTR/RTS 组合预设。
 - 支持读保护解除、烧写后运行、完成后关闭串口。
+- 明暗主题切换和中英文切换。
 - 提供 Web UI 和 CLI 两种入口。
 
 ## 浏览器使用

@@ -26,3 +26,7 @@ npm-debug.log*
 
 # Local browser verification artifacts
 .playwright-cli/
+
+# Internal working docs
+TODO.md
+AGENTS.md

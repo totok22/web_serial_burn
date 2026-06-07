@@ -1,11 +1,11 @@
 @echo off
-REM Windows one-click launcher for Web MCU Burner.
+REM Windows one-click launcher for SerialFlash.
 setlocal
 cd /d "%~dp0"
 
 set "HOST=127.0.0.1"
-if defined WEB_MCU_BURN_PORT (
-    set "PORT=%WEB_MCU_BURN_PORT%"
+if defined SERIALFLASH_PORT (
+    set "PORT=%SERIALFLASH_PORT%"
 ) else (
     set "PORT=8080"
 )
@@ -36,7 +36,7 @@ exit /b 1
 call :find_free_port
 set "URL=http://%HOST%:%PORT%/index.html"
 
-echo Starting Web MCU Burner
+echo Starting SerialFlash
 echo Project: %CD%
 echo URL: %URL%
 echo.
