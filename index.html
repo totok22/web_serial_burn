@@ -32,7 +32,7 @@
             <div class="port-section">
               <button id="selectPortBtn" class="port-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4 4 4-4"></path></svg>
-                <span id="portName" data-i18n="selectPort">请选择串口</span>
+                <span id="portName" data-i18n="selectPort">选择并开启串口</span>
               </button>
               <select id="targetProfile" title="目标协议" aria-label="Target protocol">
                 <option value="stm32-uart">STM32 UART ISP</option>
@@ -174,7 +174,6 @@
             <pre id="log" aria-live="polite"></pre>
 
             <div class="actions manual-actions">
-              <button id="connectBtn" class="small-btn" data-i18n="openPort">开启串口</button>
               <button id="disconnectBtn" disabled class="small-btn" data-i18n="closePort">关闭串口</button>
               <button id="clearLogBtn" class="small-btn text-muted" data-i18n="clear">清空日志</button>
             </div>

@@ -11,7 +11,7 @@ const i18n = {
     appTitle: "SerialFlash",
     settingsTitle: "烧写设置",
     target: "目标协议",
-    selectPort: "请选择串口",
+    selectPort: "选择并开启串口",
     chooseFirmware: "点击选择固件文件 (.bin / .hex)",
     noFile: "未加载文件",
     resetLogicTitle: "DTR/RTS 复位模式",
@@ -44,7 +44,6 @@ const i18n = {
     doClose: "完成后关闭串口",
     doUnlock: "若发生读保护，自动解除保护 (将擦除全片)",
     startProgram: "开始编程",
-    openPort: "开启串口",
     closePort: "关闭串口",
     clear: "清空日志",
     executionLog: "执行日志",
@@ -68,7 +67,7 @@ const i18n = {
     appTitle: "SerialFlash",
     settingsTitle: "Programming Settings",
     target: "Target protocol",
-    selectPort: "Select Serial Port",
+    selectPort: "Select and Open Port",
     chooseFirmware: "Click to select firmware (.bin / .hex)",
     noFile: "No file loaded",
     resetLogicTitle: "DTR/RTS reset mode",
@@ -101,7 +100,6 @@ const i18n = {
     doClose: "Close port after completion",
     doUnlock: "Auto-unlock readout protection (erases chip)",
     startProgram: "Start Programming",
-    openPort: "Open Port",
     closePort: "Close Port",
     clear: "Clear Log",
     executionLog: "Execution Log",
@@ -155,7 +153,6 @@ const els = {
   doClose: $("doClose"),
   doUnlock: $("doUnlock"),
   selectPortBtn: $("selectPortBtn"),
-  connectBtn: $("connectBtn"),
   disconnectBtn: $("disconnectBtn"),
   fullProcessBtn: $("fullProcessBtn"),
   clearLogBtn: $("clearLogBtn"),
@@ -415,7 +412,6 @@ function updateUi() {
       els.portName.textContent = t("selectPort");
   }
 
-  els.connectBtn.disabled = !supported || state.connected;
   els.disconnectBtn.disabled = !state.connected;
 
   const canFlash = state.connected && state.firmware && els.targetProfile.value === "stm32-uart";
@@ -657,7 +653,6 @@ els.languageToggle.addEventListener("click", () => {
 
 els.targetProfile.addEventListener("change", updateUi);
 els.selectPortBtn.addEventListener("click", requestPort);
-els.connectBtn.addEventListener("click", connect);
 els.disconnectBtn.addEventListener("click", disconnect);
 els.fullProcessBtn.addEventListener("click", runAutoProgram);
 els.clearLogBtn.addEventListener("click", () => els.log.innerHTML = "");
