@@ -66,7 +66,11 @@ export function readFlashSettings(vscode, context) {
 
 export async function updateWorkspaceSetting(vscode, key, value) {
   const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-  await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+  const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+  const target = hasWorkspace
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global;
+  await config.update(key, value, target);
 }
 
 export async function rememberSuccessfulFlash(vscode, context, settings) {
