@@ -87,51 +87,61 @@ export class SerialFlashPanel {
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <div class="hero-title">
-        <p class="kicker">STM32 UART ISP</p>
-        <h1>STM32 Serial Flasher</h1>
-        <p class="subtitle">本地 VS Code 插件通过 Extension Host 串口烧录，不经过浏览器 Web Serial。</p>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+        </span>
+        <div class="brand-text">
+          <h1>SerialFlash</h1>
+          <p class="tagline">STM32 UART ISP</p>
+        </div>
       </div>
-      <div class="status-card">
-        <span class="label">当前状态</span>
-        <strong id="phase">Idle</strong>
-        <span id="progressText">0%</span>
+      <div class="status" id="status" data-state="idle">
+        <span class="status-dot" aria-hidden="true"></span>
+        <strong id="phase" class="status-phase">Idle</strong>
+        <span class="status-pct" id="progressText">0%</span>
       </div>
-    </section>
+    </header>
 
     <section class="main-grid">
       <div class="panel-card setup-card">
         <header class="section-heading">
-          <div>
-            <h2>烧录目标</h2>
-            <p>日常只需要确认这三项，然后执行烧录。</p>
-          </div>
-          <button data-action="diagnostics" data-allow-running="true">诊断</button>
+          <h2>烧录目标</h2>
+          <button class="ghost" data-action="diagnostics" data-allow-running="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            诊断
+          </button>
         </header>
 
         <div class="target-list">
           <div class="target-row">
-            <span class="target-key">固件</span>
-            <div>
+            <span class="target-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            </span>
+            <div class="target-body">
+              <span class="target-key">固件</span>
               <strong id="firmware">-</strong>
-              <small id="firmwareHint">未选择时会按工作区自动发现。</small>
             </div>
             <button data-action="selectFirmware">选择</button>
           </div>
           <div class="target-row">
-            <span class="target-key">串口</span>
-            <div>
+            <span class="target-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m8 17 4 4 4-4"/></svg>
+            </span>
+            <div class="target-body">
+              <span class="target-key">串口</span>
               <strong id="port">-</strong>
-              <small id="portHint">macOS 自动复位优先使用 /dev/tty.usbserial-*。</small>
             </div>
             <button data-action="selectPort">选择</button>
           </div>
           <div class="target-row">
-            <span class="target-key">复位</span>
-            <div>
+            <span class="target-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 3v6h-6"/></svg>
+            </span>
+            <div class="target-body">
+              <span class="target-key">复位</span>
               <strong id="reset">-</strong>
-              <small id="resetHint">CH340C 与 CH340X 电路不要混用预设。</small>
             </div>
             <button data-action="selectReset">选择</button>
           </div>
@@ -145,11 +155,14 @@ export class SerialFlashPanel {
             <p id="runSummary">115200 8E1 / 0x08000000</p>
           </div>
         </header>
-        <button class="primary" data-action="flash">开始烧录</button>
-        <button data-action="cancel" data-allow-running="true" data-requires-running="true">取消</button>
+        <button class="primary" data-action="flash">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          开始烧录
+        </button>
         <div class="progress" aria-label="Flash progress">
           <div id="bar"></div>
         </div>
+        <button class="cancel" data-action="cancel" data-allow-running="true" data-requires-running="true">取消</button>
         <div class="quick-actions">
           <button data-action="bootloader">进 Bootloader</button>
           <button data-action="run">复位运行</button>
@@ -274,31 +287,33 @@ export class SerialFlashPanel {
     </section>
 
     <section class="lower">
-      <div class="panel-card">
+      <div class="panel-card log-card">
         <header>
-          <h2>最近日志</h2>
-          <button data-action="output" data-allow-running="true">完整输出</button>
+          <h2>日志</h2>
+          <button class="ghost" data-action="output" data-allow-running="true">完整输出</button>
         </header>
         <pre id="log"></pre>
       </div>
       <div class="panel-card">
         <header>
           <h2>历史记录</h2>
-          <button data-action="clearHistory">清空</button>
+          <button class="ghost" data-action="clearHistory">清空</button>
         </header>
         <ol id="history"></ol>
       </div>
-      <div class="panel-card">
+    </section>
+
+    <section class="lower secondary">
+      <div class="panel-card" id="diagnosticsCard" hidden>
         <header>
           <h2>诊断</h2>
-          <button data-action="diagnostics" data-allow-running="true">运行</button>
+          <button class="ghost" data-action="diagnostics" data-allow-running="true">重新运行</button>
         </header>
         <pre id="diagnostics"></pre>
       </div>
-      <div class="panel-card">
+      <div class="panel-card" id="troubleshootingCard" hidden>
         <header>
           <h2>Troubleshooting</h2>
-          <button data-action="output" data-allow-running="true">输出</button>
         </header>
         <ul id="troubleshooting"></ul>
       </div>

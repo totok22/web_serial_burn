@@ -4,18 +4,18 @@ const refs = {
   firmware: document.getElementById("firmware"),
   port: document.getElementById("port"),
   reset: document.getElementById("reset"),
-  firmwareHint: document.getElementById("firmwareHint"),
-  portHint: document.getElementById("portHint"),
-  resetHint: document.getElementById("resetHint"),
   runSummary: document.getElementById("runSummary"),
   optionPills: document.getElementById("optionPills"),
+  status: document.getElementById("status"),
   phase: document.getElementById("phase"),
   progressText: document.getElementById("progressText"),
   bar: document.getElementById("bar"),
   log: document.getElementById("log"),
   history: document.getElementById("history"),
   diagnostics: document.getElementById("diagnostics"),
+  diagnosticsCard: document.getElementById("diagnosticsCard"),
   troubleshooting: document.getElementById("troubleshooting"),
+  troubleshootingCard: document.getElementById("troubleshootingCard"),
   inputs: Array.from(document.querySelectorAll("[data-setting]")),
   buttons: Array.from(document.querySelectorAll("button[data-action]")),
 };
@@ -36,9 +36,6 @@ function render(state) {
   setText(refs.firmware, settings.firmware);
   setText(refs.port, settings.port);
   setText(refs.reset, settings.resetMode);
-  setText(refs.firmwareHint, settings.firmware ? "已固定到工作区配置或上次成功记录。" : "未选择时会按工作区自动发现。");
-  setText(refs.portHint, settings.port ? "烧录会使用 Extension Host 可见的这个串口。" : "先运行诊断或选择串口确认设备可见。");
-  setText(refs.resetHint, settings.resetMode === "custom" ? "当前使用自定义 DTR/RTS 映射。" : "CH340C 与 CH340X 电路不要混用预设。");
 
   const serialFormat = `${settings.baudRate || 115200} 8${settings.parity === "none" ? "N" : "E"}1`;
   const address = settings.flashAddress || "HEX auto / BIN 0x08000000";
@@ -57,6 +54,14 @@ function render(state) {
   refs.bar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
   refs.progressText.textContent = `${Math.round(progress)}%`;
   refs.phase.textContent = state.error || state.phase || (state.running ? "Flashing" : "Idle");
+  const statusState = state.running
+    ? "running"
+    : state.error
+      ? "error"
+      : progress >= 100
+        ? "done"
+        : "idle";
+  refs.status?.setAttribute("data-state", statusState);
   document.body.dataset.running = state.running ? "true" : "false";
 
   for (const input of refs.inputs) {
@@ -103,12 +108,15 @@ function render(state) {
         ].filter(Boolean).join(" ")),
       ].join("\n")
     : "";
+  if (refs.diagnosticsCard) refs.diagnosticsCard.hidden = !diagnostics;
 
-  refs.troubleshooting.replaceChildren(...(state.troubleshooting || []).map((hint) => {
+  const hints = state.troubleshooting || [];
+  refs.troubleshooting.replaceChildren(...hints.map((hint) => {
     const item = document.createElement("li");
     item.textContent = hint;
     return item;
   }));
+  if (refs.troubleshootingCard) refs.troubleshootingCard.hidden = hints.length === 0;
 }
 
 document.querySelectorAll("[data-action]").forEach((button) => {
