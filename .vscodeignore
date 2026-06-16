@@ -1,10 +1,12 @@
 .git/**
 .gitignore
+.vscode/**
 .playwright-cli/**
 tests/**
 TODO.md
 AGENTS.md
 CONTRIBUTING.md
+docs/VS_CODE_EXTENSION_PLAN.md
 package-lock.json
 *.log
 *.tgz
