@@ -1,5 +1,12 @@
 # 变更记录
 
+## 0.1.1
+
+### VS Code 插件
+
+- 更新插件 Marketplace 图标和 Activity Bar 图标为新的灰色微芯片样式。
+- Activity Bar 图标改用 `currentColor`，可随主题在激活/未激活状态下自适应配色。
+
 ## 未发布
 
 ### VS Code 插件

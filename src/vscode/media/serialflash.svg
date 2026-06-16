@@ -1,3 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <path fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M7 3h10v4H7zM6 7h12v8H6zM8 15l-2 6h12l-2-6M10 10h4l-2 4h4"/>
+<svg width="548" height="570" viewBox="0 0 548 570" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SerialFlash VS Code extension icon</title>
+  <desc id="desc">A smooth gray line icon of a microchip with a lightning bolt and downward arrow. Transparent background.</desc>
+  <g fill="none" stroke="currentColor" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" shape-rendering="geometricPrecision">
+    <!-- pins behind the chip body -->
+    <path d="M173 92V45C173 38.9 177.9 34 184 34H187C193.1 34 198 38.9 198 45V92"/>
+    <path d="M260 92V45C260 38.9 264.9 34 271 34H274C280.1 34 285 38.9 285 45V92"/>
+    <path d="M349 92V45C349 38.9 353.9 34 360 34H363C369.1 34 374 38.9 374 45V92"/>
+
+    <path d="M173 503V555C173 561.1 177.9 566 184 566H187C193.1 566 198 561.1 198 555V503"/>
+    <path d="M260 503V555C260 561.1 264.9 566 271 566H274C280.1 566 285 561.1 285 555V503"/>
+    <path d="M349 503V555C349 561.1 353.9 566 360 566H363C369.1 566 374 561.1 374 555V503"/>
+
+    <path d="M73 178H31C24.9 178 20 182.9 20 189V192C20 198.1 24.9 203 31 203H73"/>
+    <path d="M73 261H31C24.9 261 20 265.9 20 272V275C20 281.1 24.9 286 31 286H73"/>
+    <path d="M73 344H31C24.9 344 20 348.9 20 355V358C20 364.1 24.9 369 31 369H73"/>
+    <path d="M73 428H31C24.9 428 20 432.9 20 439V442C20 448.1 24.9 453 31 453H73"/>
+
+    <path d="M475 178H517C523.1 178 528 182.9 528 189V192C528 198.1 523.1 203 517 203H475"/>
+    <path d="M475 261H517C523.1 261 528 265.9 528 272V275C528 281.1 523.1 286 517 286H475"/>
+    <path d="M475 344H517C523.1 344 528 348.9 528 355V358C528 364.1 523.1 369 517 369H475"/>
+    <path d="M475 428H517C523.1 428 528 432.9 528 439V442C528 448.1 523.1 453 517 453H475"/>
+
+    <!-- chip body -->
+    <rect x="73" y="93" width="402" height="410" rx="44" ry="44"/>
+
+    <!-- flash symbol -->
+    <path d="M303 166L218 276H264L238 361L329 249H280L303 166Z"/>
+
+    <!-- download arrow -->
+    <path d="M284 323V382H315L272 429L229 382H260V359"/>
+  </g>
 </svg>
