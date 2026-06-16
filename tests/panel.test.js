@@ -127,3 +127,14 @@ test("panel includes troubleshooting output area", () => {
   assert.match(html, /<h2>Troubleshooting<\/h2>/);
   assert.match(html, /<ul id="troubleshooting"><\/ul>/);
 });
+
+test("panel groups advanced and dangerous controls", () => {
+  const html = makeHtmlPanel().html();
+
+  assert.match(html, /<span>烧录参数<\/span>/);
+  assert.match(html, /<span>硬件复位<\/span>/);
+  assert.match(html, /<span>项目与自动化<\/span>/);
+  assert.match(html, /<span>维护与危险操作<\/span>/);
+  assert.match(html, /data-action="unlock" class="danger"/);
+  assert.match(html, /data-action="clearRemembered"/);
+});

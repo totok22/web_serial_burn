@@ -4,9 +4,11 @@ const refs = {
   firmware: document.getElementById("firmware"),
   port: document.getElementById("port"),
   reset: document.getElementById("reset"),
-  baud: document.getElementById("baud"),
-  address: document.getElementById("address"),
-  options: document.getElementById("options"),
+  firmwareHint: document.getElementById("firmwareHint"),
+  portHint: document.getElementById("portHint"),
+  resetHint: document.getElementById("resetHint"),
+  runSummary: document.getElementById("runSummary"),
+  optionPills: document.getElementById("optionPills"),
   phase: document.getElementById("phase"),
   progressText: document.getElementById("progressText"),
   bar: document.getElementById("bar"),
@@ -19,7 +21,14 @@ const refs = {
 };
 
 function setText(ref, value) {
-  ref.textContent = value || "-";
+  if (ref) ref.textContent = value || "-";
+}
+
+function optionPill(label, enabled) {
+  const item = document.createElement("span");
+  item.className = `pill${enabled ? " enabled" : ""}`;
+  item.textContent = label;
+  return item;
 }
 
 function render(state) {
@@ -27,16 +36,22 @@ function render(state) {
   setText(refs.firmware, settings.firmware);
   setText(refs.port, settings.port);
   setText(refs.reset, settings.resetMode);
-  setText(refs.baud, `${settings.baudRate || 115200} 8${settings.parity === "none" ? "N" : "E"}1`);
-  setText(refs.address, settings.flashAddress || "0x08000000");
+  setText(refs.firmwareHint, settings.firmware ? "已固定到工作区配置或上次成功记录。" : "未选择时会按工作区自动发现。");
+  setText(refs.portHint, settings.port ? "烧录会使用 Extension Host 可见的这个串口。" : "先运行诊断或选择串口确认设备可见。");
+  setText(refs.resetHint, settings.resetMode === "custom" ? "当前使用自定义 DTR/RTS 映射。" : "CH340C 与 CH340X 电路不要混用预设。");
+
+  const serialFormat = `${settings.baudRate || 115200} 8${settings.parity === "none" ? "N" : "E"}1`;
+  const address = settings.flashAddress || "HEX auto / BIN 0x08000000";
+  setText(refs.runSummary, `${serialFormat} / ${address}`);
 
   const options = [
-    settings.eraseBeforeWrite && "erase",
-    settings.verifyAfterWrite && "verify",
-    settings.runAfterWrite && "run",
-    settings.unlockReadProtection && "unlock",
-  ].filter(Boolean);
-  setText(refs.options, options.join(" "));
+    ["擦除", settings.eraseBeforeWrite],
+    ["校验", settings.verifyAfterWrite],
+    ["运行", settings.runAfterWrite],
+    ["关串口", settings.closePortAfterWrite],
+    ["解锁", settings.unlockReadProtection],
+  ];
+  refs.optionPills?.replaceChildren(...options.map(([label, enabled]) => optionPill(label, enabled)));
 
   const progress = Number.isFinite(state.progress) ? state.progress : 0;
   refs.bar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
