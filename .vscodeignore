@@ -2,6 +2,7 @@
 .gitignore
 .vscode/**
 .playwright-cli/**
+**/.DS_Store
 tests/**
 TODO.md
 AGENTS.md

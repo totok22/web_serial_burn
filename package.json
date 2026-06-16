@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "VS Code extension for flashing STM32 firmware through the USART bootloader.",
   "displayName": "STM32 Serial Flasher",
-  "publisher": "serialflash",
+  "publisher": "totok22",
   "icon": "src/vscode/media/icon.png",
   "license": "MIT",
   "repository": {
