@@ -15,7 +15,6 @@
 - 内置多种 CH340 复位时序预设，并支持完全自定义 DTR/RTS 映射。
 - 失败时在 Output 中给出针对超时、NACK、串口占用、权限、校验失败的排查建议。
 - 记录最近烧录历史，可保存多套项目配置（profile）在不同板卡间切换。
-- 硬件访问始终由 Extension Host 中的 Node `serialport` 执行，不经过浏览器 Web Serial。
 
 ---
 
@@ -121,10 +120,11 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 
 硬件约定与注意事项：
 
-- 项目内部约定 `true` 为低电平、`false` 为高电平；Node `serialport` 的 modem 线布尔值相反，取反逻辑统一保留在 `src/node-serial-transport.js`。
+- 自定义映射时项目约定 `true` 为低电平、`false` 为高电平。
 - CH340C 与 CH340X 电路不要混用预设，时序不同会导致进不去 Bootloader。
 - macOS 端口排序优先 `/dev/tty.usbserial-*`，再考虑 `/dev/cu.usbserial-*`。
 - STM32 USART Bootloader 默认使用 `115200 8E1`。
+- 不确定该选哪个预设时，先用默认 `dtr-low-rts-high` 试；若一直超时，改用 `Reset To Bootloader` 配合手动按键确认接线，再逐个尝试其他预设。
 
 电路图、时序记录和排查经验见 [docs/CH340_HARDWARE.md](docs/CH340_HARDWARE.md)；协议包格式见 [docs/STM32_PROTOCOL.md](docs/STM32_PROTOCOL.md)。
 
@@ -152,7 +152,16 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 
 ## 配置参考
 
-可在工作区或用户设置中配置：
+烧录流程的四个写入开关（面板和配置中均可调整）：
+
+| 选项 | 默认 | 作用 |
+| --- | --- | --- |
+| `eraseBeforeWrite` | 开 | 写入前整片擦除，避免残留旧程序 |
+| `verifyAfterWrite` | 开 | 写入后读回校验，较慢但能确认写入正确 |
+| `runAfterWrite` | 开 | 烧录成功后复位并运行用户程序 |
+| `closePortAfterWrite` | 开 | 完成后关闭串口；关掉它可让端口保持打开供调试 |
+
+完整设置示例（可在工作区或用户设置中配置）：
 
 ```json
 {
@@ -191,7 +200,6 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 - `serialFlash.flashAddress` 未显式配置时，HEX 固件优先使用文件内的 base address，BIN 固件默认 `0x08000000`。
 - `serialFlash.firmwareGlobs` / `serialFlash.excludeGlobs` 用于收窄固件扫描范围，避免工作区内多个产物互相干扰。
 - `serialFlash.unlockReadProtection` 仅在确认芯片处于读保护状态时开启，它会触发整片擦除。
-- 关闭 `serialFlash.closePortAfterWrite` 时，烧录成功后端口保持打开，需要释放时执行 **Close Port**。
 
 ---
 
@@ -201,6 +209,25 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 - Remote SSH / WSL / Dev Container 中只能访问 **Extension Host 实际运行端机器** 上的串口；激活时会提示当前 Extension Host，避免误选本机不存在的串口。
 - 不支持 vscode.dev / github.dev 烧录，因为 Web 扩展无法使用 Node `serialport`。
 - 同步 Bootloader 时会忽略进入 ACK 前的非 Bootloader 噪声字节，便于处理用户程序的残留输出。
+
+---
+
+## 常见问题排查
+
+烧录失败时，面板的 Troubleshooting 区和 Output 会给出具体建议。常见情况：
+
+| 现象 | 原因与处理 |
+| --- | --- |
+| 串口被占用 / busy / access denied | 关闭占用该串口的串口监视器、终端、其它烧录工具或上一轮未释放的连接 |
+| 权限不足 / EACCES / EPERM | 检查串口权限；Linux 通常需把当前用户加入 `dialout`（或 `uucp`）组后重新登录 |
+| 一直超时、收不到 Bootloader ACK | 确认 BOOT0/RESET 接线、复位模式、端口选择和 `115200 8E1`；可先用 `Reset To Bootloader` 或手动进入 Bootloader 验证，再换其他复位预设 |
+| 收到非 Bootloader 数据 | 目标可能仍在运行用户程序并输出串口数据，先确认已进入 ROM Bootloader |
+| 返回 NACK | 检查芯片读保护、flash 地址、擦除状态，以及该命令是否被当前 Bootloader 支持 |
+| 校验失败 | 确认固件对应当前板卡、`flashAddress` / HEX base address 正确，重新擦除后再烧录 |
+| 固件解析失败 | 重新构建或导出 `.hex` / `.bin`，确认文件不是日志、ELF 或被截断的产物 |
+| serialport 原生依赖不可用 | 重新安装依赖或用打包好的 VSIX 安装，并运行 `Run Diagnostics` |
+
+仍无法定位时，运行 `Run Diagnostics` 记录端口、复位模式、Bootloader 版本和 PID，便于进一步排查。
 
 ---
 
