@@ -32,23 +32,13 @@ Node `serialport` 的 modem 线布尔值语义相反，因此 `src/node-serial-t
 stm32flash -b 115200 -i -rts,-dtr,dtr /dev/tty.usbserial-10
 ```
 
-CLI 验证命令：
-
-```bash
-node src/cli.js \
-  --port /dev/tty.usbserial-10 \
-  --file /Users/poli/STM32CubeIDE/workspace_2.1.1/PDM/Debug/PDM.hex \
-  --reset dtr-low-rts-high \
-  --timeout 3000 \
-  --unlock
-```
-
 验证对象：
 
 - CH340C 经典电路。
 - STM32F10xxx Medium-density。
 - Bootloader `0x22`。
 - PID `0x0410`。
+- 历史 CLI 烧录、擦除和校验完成；当前插件分支不再保留 CLI 入口。
 
 ![CH340C 经典电路](assets/circuit_of_ch340c.png)
 
@@ -92,7 +82,7 @@ node src/cli.js \
 - 固件 `/Users/poli/STM32CubeIDE/workspace_2.1.1/CAN2RS485/build/Debug/CAN2RS485.hex`。
 - Bootloader `0x31`。
 - PID `0x0413`。
-- CLI 确认有效入口组合 `RTS BOOT=true / DTR RESET=false`。
+- 历史 CLI 确认有效入口组合 `RTS BOOT=true / DTR RESET=false`。
 - 擦除、写入、读回校验完成。
 
 ![CH340X 直连电路](assets/circuit_of_ch340x.png)
@@ -101,14 +91,14 @@ node src/cli.js \
 
 - `0x7F` 同步超时通常是没有进入 ROM Bootloader，不应先改擦写协议。
 - 收到持续乱码或 `0x43` 一类字节，通常是用户程序或其它 Bootloader 在输出。
-- Web Serial 和 Node `serialport` 的 DTR/RTS 布尔语义不同；同一块板在 Web 和 CLI 侧可能需要相反布尔值。
-- CH340X 板烧写后若端口保持打开，DTR/RTS 可能继续影响运行；Web 端提供完成后关闭串口选项。
+- Node `serialport` 的 DTR/RTS 布尔语义与项目内部电平约定相反，适配层必须统一取反。
+- CH340X 板烧写后若端口保持打开，DTR/RTS 可能继续影响运行；插件默认完成后关闭串口。
 - 较大容量 STM32 的全片擦除可能超过 15 秒，当前 ACK 等待为 60 秒。
 
 ## 排查清单
 
 - 使用 `115200 8E1`。
-- macOS CLI 自动复位优先使用 `/dev/tty.usbserial-*`。
+- macOS 自动复位优先使用 `/dev/tty.usbserial-*`。
 - 如果持续读到用户程序输出，说明没有进入 ROM Bootloader。
 - 如果 Sync 成功但 GET 超时，先检查 STM32 响应解析，不要先改硬件时序。
 - 新板型改预设前，先用 `stm32flash` 或只读命令验证。

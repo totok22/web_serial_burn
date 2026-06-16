@@ -1,5 +1,45 @@
 # 变更记录
 
+## 未发布
+
+### VS Code 插件
+
+- 将分支收敛为 `STM32 Serial Flasher` VS Code 本地插件。
+- 增加命令面板、右键菜单、Quick Pick、Output Channel、状态栏和 Webview 烧录面板入口。
+- 增加 Activity Bar Sidebar，显示当前配置、常用动作和最近烧录历史。
+- 增加擦除、校验、解除读保护、清除记忆、创建项目配置、清空历史命令。
+- 增加 `Close Port` 命令，并保证烧录失败时即使关闭自动关端口选项也会释放串口。
+- 增加 `Cancel Flash` 命令和 Webview 入口。
+- 增加 `custom` 复位模式及 DTR/RTS 自定义映射配置。
+- 增加可配置固件发现 globs/excludes。
+- 增加 `Show Firmware Info` 命令和右键菜单入口。
+- 增加 `Run Diagnostics` 命令、侧边栏和 Webview 入口，用于输出 Extension Host、`serialport` 和串口枚举状态。
+- 串口选择和诊断输出保留 serial number 与 VID/PID，便于多设备排查。
+- 状态栏在插件激活时会显示已记住的串口。
+- `.hex` / `.bin` 右键菜单增加直接校验入口。
+- 固件 Quick Pick 增加格式、大小和 HEX base address 摘要。
+- 失败日志增加串口占用、权限、Bootloader ACK 超时、NACK 和校验失败等排查建议。
+- `Create Project Config` 支持合并带注释的 VS Code `settings.json`，并写入固件发现 globs/excludes。
+- `Create Tasks` 支持合并带注释的 VS Code `tasks.json`，并保留已有任务。
+- Remote / WSL / Dev Container 环境激活时提示串口归属 Extension Host，并引导运行 Diagnostics。
+- Webview 面板运行中会锁定配置和危险动作，只保留 Cancel、Output 和 Diagnostics。
+- Webview 面板显示失败排查建议，并在新一轮烧录开始或成功后清理旧错误状态。
+- 切换项目 profile 或在 Webview 修改端口后，状态栏会同步当前端口。
+- 增加多项目 profile：可保存和切换 `serialFlash.projects`。
+- 增加 `serialFlash` VS Code Task Provider。
+- 增加 `Create Tasks` 命令，可生成 `.vscode/tasks.json`。
+- 增加工作区固件自动发现、排序和上次成功配置记忆。
+- Webview 面板支持编辑主要烧录配置、显示最近日志和历史记录。
+- 将 STM32 UART ISP 烧录流程抽为 `flashStm32Uart()`，供插件命令统一调用。
+- 共享烧录流程支持忽略 Bootloader ACK 前的串口噪声字节。
+- 将 DTR/RTS 复位时序抽到 `src/core/reset-timing.js`。
+- 增加 manifest、扩展激活、打包和临时 VS Code 安装验证。
+
+### 清理
+
+- 删除旧浏览器 Web Serial 页面、样式、字体和双击启动脚本。
+- 删除 CLI 入口，当前分支只保留 VS Code 插件需要的 Node 串口适配、固件解析、协议和 core。
+
 ## v0.1.0 - 2026-06-07
 
 首个公开版本。

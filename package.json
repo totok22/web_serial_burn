@@ -1,18 +1,494 @@
 {
-  "name": "serialflash",
+  "name": "serialflash-stm32",
   "version": "0.1.0",
-  "description": "SerialFlash — Web Serial and CLI STM32 UART ISP flashing tool.",
+  "description": "VS Code extension for flashing STM32 firmware through the USART bootloader.",
+  "displayName": "STM32 Serial Flasher",
+  "publisher": "serialflash",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/totok22/SerialFlash.git"
+  },
   "type": "module",
-  "bin": {
-    "serialflash": "./src/cli.js"
+  "main": "./src/vscode/extension.cjs",
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:serialFlash.flashLatestFirmware",
+    "onCommand:serialFlash.flashCurrentFile",
+    "onCommand:serialFlash.selectFirmware",
+    "onCommand:serialFlash.setFirmware",
+    "onCommand:serialFlash.showFirmwareInfo",
+    "onCommand:serialFlash.selectSerialPort",
+    "onCommand:serialFlash.selectResetMode",
+    "onCommand:serialFlash.openPanel",
+    "onCommand:serialFlash.resetToBootloader",
+    "onCommand:serialFlash.resetAndRun",
+    "onCommand:serialFlash.showOutput",
+    "onCommand:serialFlash.runDiagnostics",
+    "onCommand:serialFlash.eraseChip",
+    "onCommand:serialFlash.verifyFirmware",
+    "onCommand:serialFlash.unlockReadProtection",
+    "onCommand:serialFlash.clearRememberedDevice",
+    "onCommand:serialFlash.closePort",
+    "onCommand:serialFlash.cancel",
+    "onCommand:serialFlash.createProjectConfig",
+    "onCommand:serialFlash.createTasks",
+    "onCommand:serialFlash.createProjectProfile",
+    "onCommand:serialFlash.selectProjectProfile",
+    "onCommand:serialFlash.clearHistory",
+    "onCommand:serialFlash.refreshSidebar",
+    "onTaskType:serialFlash",
+    "onView:serialFlash.sidebar"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "serialFlash.flashLatestFirmware",
+        "title": "Flash Latest Firmware",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.flashCurrentFile",
+        "title": "Flash Current File",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.selectFirmware",
+        "title": "Select Firmware",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.setFirmware",
+        "title": "Set as SerialFlash Firmware",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.showFirmwareInfo",
+        "title": "Show Firmware Info",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.selectSerialPort",
+        "title": "Select Serial Port",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.selectResetMode",
+        "title": "Select Reset Mode",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.openPanel",
+        "title": "Open Flasher Panel",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.resetToBootloader",
+        "title": "Reset To Bootloader",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.resetAndRun",
+        "title": "Reset And Run",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.showOutput",
+        "title": "Show Output",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.runDiagnostics",
+        "title": "Run Diagnostics",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.eraseChip",
+        "title": "Erase Chip",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.verifyFirmware",
+        "title": "Verify Firmware",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.unlockReadProtection",
+        "title": "Unlock Read Protection",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.clearRememberedDevice",
+        "title": "Clear Remembered Device",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.closePort",
+        "title": "Close Port",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.cancel",
+        "title": "Cancel Flash",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.createProjectConfig",
+        "title": "Create Project Config",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.createTasks",
+        "title": "Create Tasks",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.createProjectProfile",
+        "title": "Create Project Profile",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.selectProjectProfile",
+        "title": "Select Project Profile",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.clearHistory",
+        "title": "Clear Flash History",
+        "category": "SerialFlash"
+      },
+      {
+        "command": "serialFlash.refreshSidebar",
+        "title": "Refresh",
+        "category": "SerialFlash"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "serialFlash",
+          "title": "SerialFlash",
+          "icon": "src/vscode/media/serialflash.svg"
+        }
+      ]
+    },
+    "views": {
+      "serialFlash": [
+        {
+          "id": "serialFlash.sidebar",
+          "name": "Flasher"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "serialFlash.flashCurrentFile",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@50"
+        },
+        {
+          "command": "serialFlash.verifyFirmware",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@51"
+        },
+        {
+          "command": "serialFlash.setFirmware",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@52"
+        },
+        {
+          "command": "serialFlash.showFirmwareInfo",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@53"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "serialFlash.flashCurrentFile",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@50"
+        },
+        {
+          "command": "serialFlash.verifyFirmware",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@51"
+        },
+        {
+          "command": "serialFlash.setFirmware",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@52"
+        },
+        {
+          "command": "serialFlash.showFirmwareInfo",
+          "when": "resourceExtname == .hex || resourceExtname == .bin",
+          "group": "navigation@53"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "serialFlash.refreshSidebar",
+          "when": "view == serialFlash.sidebar",
+          "group": "navigation"
+        }
+      ]
+    },
+    "taskDefinitions": [
+      {
+        "type": "serialFlash",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "flashLatest",
+              "bootloader",
+              "run"
+            ],
+            "description": "SerialFlash action to run."
+          }
+        }
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "serialFlash.flashLatestFirmware",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f"
+      }
+    ],
+    "configuration": {
+      "title": "SerialFlash",
+      "properties": {
+        "serialFlash.firmware": {
+          "type": "string",
+          "default": "",
+          "description": "Workspace-relative or absolute firmware path."
+        },
+        "serialFlash.port": {
+          "type": "string",
+          "default": "",
+          "description": "Serial port path, for example /dev/tty.usbserial-10 or COM3."
+        },
+        "serialFlash.baudRate": {
+          "type": "number",
+          "default": 115200,
+          "description": "USART bootloader baud rate."
+        },
+        "serialFlash.parity": {
+          "type": "string",
+          "enum": [
+            "even",
+            "none"
+          ],
+          "default": "even",
+          "description": "USART parity."
+        },
+        "serialFlash.resetMode": {
+          "type": "string",
+          "enum": [
+            "dtr-high-rts-low",
+            "dtr-low-rts-high",
+            "ch340x",
+            "none",
+            "custom"
+          ],
+          "default": "dtr-low-rts-high",
+          "description": "DTR/RTS reset mode."
+        },
+        "serialFlash.customReset.boot0High": {
+          "type": "string",
+          "enum": [
+            "dtr-true",
+            "dtr-false",
+            "rts-true",
+            "rts-false"
+          ],
+          "default": "dtr-false",
+          "description": "Signal state used to drive BOOT0 high in custom reset mode. Project convention: true is low level, false is high level."
+        },
+        "serialFlash.customReset.boot0Low": {
+          "type": "string",
+          "enum": [
+            "",
+            "dtr-true",
+            "dtr-false",
+            "rts-true",
+            "rts-false"
+          ],
+          "default": "",
+          "description": "Signal state used to release BOOT0 in custom reset mode. Empty means inverse of boot0High."
+        },
+        "serialFlash.customReset.resetAssert": {
+          "type": "string",
+          "enum": [
+            "dtr-true",
+            "dtr-false",
+            "rts-true",
+            "rts-false"
+          ],
+          "default": "rts-true",
+          "description": "Signal state used to assert RESET in custom reset mode."
+        },
+        "serialFlash.flashAddress": {
+          "type": "string",
+          "default": "0x08000000",
+          "description": "Flash base address. HEX firmware base address is used by the flasher when available."
+        },
+        "serialFlash.packetSize": {
+          "type": "number",
+          "default": 256,
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Write packet size."
+        },
+        "serialFlash.timeout": {
+          "type": "number",
+          "default": 2000,
+          "description": "Read timeout in milliseconds."
+        },
+        "serialFlash.eraseBeforeWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mass erase before writing firmware."
+        },
+        "serialFlash.verifyAfterWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "Read back and verify firmware after writing."
+        },
+        "serialFlash.runAfterWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reset and run user firmware after successful flashing."
+        },
+        "serialFlash.closePortAfterWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "Close the serial port after flashing."
+        },
+        "serialFlash.unlockReadProtection": {
+          "type": "boolean",
+          "default": false,
+          "description": "Try readout unprotect when erase returns NACK. This erases the whole chip."
+        },
+        "serialFlash.autoDiscoverFirmware": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically discover firmware candidates in the workspace when no configured firmware exists."
+        },
+        "serialFlash.firmwareGlobs": {
+          "type": "array",
+          "default": [
+            "**/*.hex",
+            "**/*.bin"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns used to discover firmware files."
+        },
+        "serialFlash.excludeGlobs": {
+          "type": "array",
+          "default": [
+            "**/{node_modules,.git,dist}/**"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns excluded from firmware discovery."
+        },
+        "serialFlash.projects": {
+          "type": "array",
+          "default": [],
+          "description": "Named SerialFlash project profiles for multi-target workspaces.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "firmware": {
+                "type": "string"
+              },
+              "port": {
+                "type": "string"
+              },
+              "baudRate": {
+                "type": "number"
+              },
+              "parity": {
+                "type": "string",
+                "enum": [
+                  "even",
+                  "none"
+                ]
+              },
+              "resetMode": {
+                "type": "string"
+              },
+              "customReset": {
+                "type": "object",
+                "properties": {
+                  "boot0High": {
+                    "type": "string"
+                  },
+                  "boot0Low": {
+                    "type": "string"
+                  },
+                  "resetAssert": {
+                    "type": "string"
+                  }
+                }
+              },
+              "flashAddress": {
+                "type": "string"
+              },
+              "packetSize": {
+                "type": "number"
+              },
+              "timeout": {
+                "type": "number"
+              },
+              "eraseBeforeWrite": {
+                "type": "boolean"
+              },
+              "verifyAfterWrite": {
+                "type": "boolean"
+              },
+              "runAfterWrite": {
+                "type": "boolean"
+              },
+              "closePortAfterWrite": {
+                "type": "boolean"
+              },
+              "unlockReadProtection": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "scripts": {
-    "start": "python3 -m http.server 8080",
-    "test": "node --test",
-    "cli": "node ./src/cli.js"
+    "test": "node --test"
   },
-  "optionalDependencies": {
+  "dependencies": {
     "serialport": "^13.0.0"
   },
   "devDependencies": {}

@@ -441,19 +441,19 @@ src/
 
 ```text
 packages/core
-packages/cli
 packages/vscode
 ```
 
 ### Core 层
 
-从现有代码抽出：
+当前保留的 core：
 
 - `src/stm32.js`
 - `src/firmware.js`
-- `src/node-firmware.js`
-- `src/serial-transport.js` 中的复位时序。
-- `src/cli.js` 中的完整烧录流程。
+- `src/core/node-firmware.js`
+- `src/core/reset-timing.js`
+- `src/core/firmware-discovery.js`
+- `src/core/flash-session.js`
 
 建议新增：
 
@@ -473,11 +473,11 @@ export async function flashStm32Uart({
   onProgress,
   signal,
 }) {
-  // shared CLI / VS Code / Web flow
+  // shared VS Code command / Webview backend flow
 }
 ```
 
-这样 CLI 和 VS Code 插件共用同一套流程。
+这样命令面板、右键菜单和 Webview 面板共用同一套烧录流程。
 
 ### VS Code 后端
 
@@ -509,14 +509,38 @@ export async function flashStm32Uart({
 
 ## 现有代码改造
 
-### 必做
+### 已完成
 
-- 把 CLI 烧录流程抽成 `flashStm32Uart()`。
-- 把 `syncBootloaderIgnoringNoise()` 从 `src/app.js` 抽到共享 core。
-- 把复位时序从 Web Serial transport 中拆出为纯函数/共享模块。
+- 把烧录流程抽成 `flashStm32Uart()`。
+- 删除与插件分支无关的浏览器 Web Serial 页面和 CLI 入口。
+- 把复位时序拆出为 `src/core/reset-timing.js`。
 - 保留 `NodeSerialTransport` 的 DTR/RTS 取反逻辑。
 - 新增固件扫描和排序模块。
 - 新增配置读取/记忆模块。
+
+### 已补强
+
+- 将浏览器端曾使用的“忽略同步前噪声”策略移入 core。
+- 增加 settings fallback、manifest、扩展激活、历史、项目配置和打包相关测试。
+- 增加 VSIX 打包验证和临时 VS Code 用户目录安装验证。
+- 增加 `docs/HARDWARE_VALIDATION.md` 实机验证记录模板。
+- 增加 `Run Diagnostics` 命令、侧边栏和 Webview 入口，用于排查 Extension Host、`serialport` 原生依赖和串口枚举状态。
+- 串口 Quick Pick 和 Diagnostics 输出 manufacturer、serial number 与 VID/PID。
+- 状态栏初始化时显示当前已记住串口，空闲态与配置保持一致。
+- `.hex` / `.bin` 右键菜单增加直接校验入口，复用现有 `Verify Firmware` 后端。
+- 固件 Quick Pick 展示格式、大小和 HEX base address 摘要。
+- 失败路径输出针对串口占用、权限、Bootloader ACK 超时、NACK 和校验失败的排查建议。
+- `Create Project Config` 支持合并 JSONC 格式的 VS Code `settings.json`，并写入固件发现 globs/excludes。
+- `Create Tasks` 支持合并 JSONC 格式的 VS Code `tasks.json`，并保留已有任务。
+- Remote / WSL / Dev Container 环境激活时提示串口归属 Extension Host，并引导运行 Diagnostics。
+- Webview 面板运行中锁定配置和危险动作，只保留 Cancel、Output 和 Diagnostics。
+- Webview 面板显示失败排查建议，并在新一轮烧录开始或成功后清理旧错误状态。
+- 切换项目 profile 或在 Webview 修改端口后，状态栏同步当前端口。
+
+### 待补强
+
+- 增加 Extension Development Host 集成验证。
+- 增加 CH340C / CH340X 插件实机验证记录。
 
 ### 暂不做
 
@@ -527,7 +551,7 @@ export async function flashStm32Uart({
 
 ## 配置项
 
-建议插件贡献配置：
+当前插件贡献配置：
 
 ```json
 {
@@ -536,24 +560,26 @@ export async function flashStm32Uart({
   "serialFlash.baudRate": 115200,
   "serialFlash.parity": "even",
   "serialFlash.resetMode": "dtr-low-rts-high",
+  "serialFlash.customReset.boot0High": "dtr-false",
+  "serialFlash.customReset.boot0Low": "",
+  "serialFlash.customReset.resetAssert": "rts-true",
   "serialFlash.flashAddress": "0x08000000",
   "serialFlash.packetSize": 256,
-  "serialFlash.timeoutMs": 2000,
+  "serialFlash.timeout": 2000,
   "serialFlash.eraseBeforeWrite": true,
   "serialFlash.verifyAfterWrite": true,
   "serialFlash.runAfterWrite": true,
   "serialFlash.closePortAfterWrite": true,
-  "serialFlash.unlockOnReadProtection": false,
+  "serialFlash.unlockReadProtection": false,
   "serialFlash.autoDiscoverFirmware": true,
   "serialFlash.firmwareGlobs": [
     "**/*.hex",
     "**/*.bin"
   ],
   "serialFlash.excludeGlobs": [
-    "**/.git/**",
-    "**/node_modules/**"
+    "**/{node_modules,.git,dist}/**"
   ],
-  "serialFlash.preferTtyUsbserialOnMac": true
+  "serialFlash.projects": []
 }
 ```
 
@@ -577,15 +603,15 @@ vscode-local-extension-plan
 任务：
 
 - 新增 `src/core/flash-session.js`。
-- 迁移 CLI 主流程。
-- CLI 改为调用 `flashStm32Uart()`。
+- 删除与插件无关的浏览器页面和 CLI 入口。
+- 插件命令改为调用 `flashStm32Uart()`。
 - 补 mock transport 测试。
 
 验收：
 
 - `npm test` 通过。
-- `node src/cli.js --help` 正常。
-- 现有 CLI 实机命令仍可烧写。
+- core 测试覆盖 open / write / verify / close。
+- 插件一键烧录复用同一条烧录链路。
 
 ### 阶段 3：插件骨架
 
@@ -683,6 +709,31 @@ vscode-local-extension-plan
 - 右键固件可直接烧录。
 - 新用户可以不打开面板完成一次烧录。
 
+### 阶段 9：专业版能力
+
+任务：
+
+- Activity Bar Sidebar 显示当前设备、当前固件、最近烧录记录和常用动作。
+- 记录最近烧录历史，支持清空。
+- 支持 `Create Project Config` 写入 `.vscode/settings.json`。
+- 支持 `Create/Select Project Profile` 管理 `serialFlash.projects` 多项目配置。
+- 提供 `serialFlash` Task Provider。
+- 提供 `Create Tasks` 命令生成 `.vscode/tasks.json`。
+- Webview 面板支持编辑主要配置、查看最近日志和历史。
+- 支持取消烧录请求。
+- 支持 `custom` 复位模式和 DTR/RTS 自定义映射配置。
+- 支持配置 `firmwareGlobs` / `excludeGlobs` 控制固件发现范围。
+- 支持 `Show Firmware Info` 右键菜单。
+- 支持 `Run Diagnostics` 输出 Extension Host、`serialport` 和串口枚举状态。
+
+验收：
+
+- Sidebar 能随配置和烧录结果刷新。
+- 项目配置文件可生成并复用。
+- VS Code Tasks 可触发 flash / bootloader / run。
+- 新用户无需手写 JSON 即可创建 SerialFlash tasks。
+- Webview 配置修改和命令面板共享同一套设置。
+
 ## 测试计划
 
 ### 单元测试
@@ -691,8 +742,13 @@ vscode-local-extension-plan
 - Intel HEX 解析。
 - reset timing。
 - flash session 流程。
+- Bootloader 同步噪声忽略。
 - firmware discovery 排序。
 - settings fallback。
+- project config serialization。
+- flash history。
+- manifest / command registration。
+- extension activation mock。
 
 ### 插件测试
 
@@ -741,6 +797,10 @@ vscode-local-extension-plan
 
 ## 推荐下一步
 
-下一步应从阶段 2 开始：抽出 `flashStm32Uart()`，让 CLI 和未来 VS Code 插件共用同一条烧录链路。
+当前分支已经转为 VS Code 插件实现分支，浏览器页面和 CLI 入口已不再作为交付目标。
 
-完成这个抽离后，再搭插件骨架会更稳，因为 VS Code 命令只是新的调用入口，不会重新实现一套烧写逻辑。
+下一步应优先做真实 Extension Development Host 验证和硬件验证：
+
+- 确认命令面板、右键菜单、Output Channel、状态栏和 Webview 在 VS Code 中正常加载。
+- 用 CH340C / CH340X 分别验证 `Flash Latest Firmware`。
+- 继续做 Extension Development Host 验证、VSIX 打包验证和 CH340C / CH340X 实机验证。

@@ -1,4 +1,4 @@
-import { parseIntelHex } from "./firmware.js";
+import { parseIntelHex } from "../firmware.js";
 
 export async function loadFirmwarePath(path, readFile) {
   const lower = path.toLowerCase();

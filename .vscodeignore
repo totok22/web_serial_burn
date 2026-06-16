@@ -1,0 +1,13 @@
+.git/**
+.gitignore
+.playwright-cli/**
+tests/**
+TODO.md
+AGENTS.md
+CONTRIBUTING.md
+package-lock.json
+*.log
+*.tgz
+*.vsix
+node_modules/**/{test,tests,example,examples}/**
+node_modules/**/*.map

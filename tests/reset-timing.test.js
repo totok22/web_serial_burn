@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bootloaderEntryStages, enterBootloader, resetToRun } from "../src/serial-transport.js";
+import { bootloaderEntryStages, enterBootloader, resetToRun } from "../src/core/reset-timing.js";
 
 test("bootloaderEntryStages returns CH340X direct preset", () => {
   const stages = bootloaderEntryStages("ch340x");

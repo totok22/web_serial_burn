@@ -70,11 +70,3 @@ export function parseIntelHex(text) {
   });
   return { bytes, baseAddress: minAddress };
 }
-
-export async function loadFirmwareFile(file) {
-  if (file.name.toLowerCase().endsWith(".hex")) {
-    const parsed = parseIntelHex(await file.text());
-    return { ...parsed, format: "hex" };
-  }
-  return { bytes: new Uint8Array(await file.arrayBuffer()), baseAddress: null, format: "bin" };
-}
