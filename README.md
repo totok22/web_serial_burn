@@ -1,140 +1,167 @@
-# STM32 Serial Flasher (SerialFlash)
+# STM32 Serial Flasher
 
-通过 STM32 USART Bootloader 和本机串口，在 VS Code 里直接烧录 `.hex` / `.bin` 固件。无需 ST-Link、无需外部命令行工具，进入 Bootloader、擦除、写入、校验、复位运行全部在编辑器内完成。
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-STM32%20Serial%20Flasher-blue?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=totok22.serialflash-stm32)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-适用于使用 CH340 等 USB-UART 桥 + STM32 自动下载电路的开发板。
+Flash STM32 firmware over USART Bootloader directly inside VS Code — no ST-Link, no external command-line tools. Enter bootloader, erase, write, verify, and reset-to-run, all from the editor.
 
----
+Designed for dev boards using CH340 (or similar) USB-UART bridges with STM32 auto-download circuits.
 
-## 主要特性
-
-- 自动扫描工作区中的 `.hex` / `.bin` 固件，按修改时间、路径和格式排序，单一候选时可自动选用。
-- 一条命令即可烧录：进入 Bootloader → 擦除 → 写入 → 校验 → 复位运行。
-- 记住上次成功的端口、固件、复位模式和波特率，下次直接复用。
-- 多种入口：Activity Bar 侧边栏、Webview 烧录面板、命令面板、文件右键菜单、状态栏、VS Code Tasks。
-- 内置多种 CH340 复位时序预设，并支持完全自定义 DTR/RTS 映射。
-- 失败时在 Output 中给出针对超时、NACK、串口占用、权限、校验失败的排查建议。
-- 记录最近烧录历史，可保存多套项目配置（profile）在不同板卡间切换。
+> **中文用户**: 请参阅 [README.zh-CN.md](README.zh-CN.md)
 
 ---
 
-## 环境要求
+## Which Version Do You Need?
 
-- VS Code 1.90 或更新版本（Desktop）。
-- 本机已连接基于 USART Bootloader 的 STM32 开发板，以及可被系统识别的 USB-UART 串口。
-- 无需额外安装驱动以外的工具，插件自带 `serialport` 原生依赖。
+This project has **two branches** for different workflows:
 
-> 运行边界（Remote / Web）见下文「运行环境与边界」。
+| Branch | Description | Best For |
+| ------ | ----------- | -------- |
+| [`vscode-extension`](https://github.com/totok22/SerialFlash/tree/vscode-extension) (you are here) | **VS Code extension** — install from marketplace, flash from the editor | VS Code users who want an integrated, one-click workflow |
+| [`main`](https://github.com/totok22/SerialFlash/tree/main) | **Web Serial + CLI** — open a browser tab or use the terminal | Quick flashing without VS Code; CI/automation; any platform with a browser |
 
----
-
-## 快速开始
-
-1. 在 VS Code 中打开你的固件工程文件夹（包含 `.hex` / `.bin` 产物的工作区）。
-2. 点击 Activity Bar 上的 **SerialFlash** 图标，打开侧边栏。
-3. 在 **Current** 区域依次确认三项：
-   - **固件** — 留空会自动发现工作区里的固件；也可点击手动选择。
-   - **串口** — 选择开发板对应的串口（macOS 优先 `/dev/tty.usbserial-*`，Windows 形如 `COM3`）。
-   - **复位** — 按你的下载电路选择预设（常见 CH340C 经典电路选 `dtr-low-rts-high`）。
-4. 执行 **Flash Latest Firmware**（侧边栏按钮、命令面板，或快捷键 `Cmd/Ctrl + Alt + F`）。
-5. 进度、阶段和日志会显示在烧录面板与 Output 中；失败时查看 Troubleshooting 建议。
-
-首次成功后，端口 / 固件 / 复位模式 / 波特率会被记住，之后一键即可重复烧录。
+Both branches share the same STM32 UART ISP core, DTR/RTS reset presets, and firmware parsing logic. Pick the one that fits your setup.
 
 ---
 
-## 界面与入口说明
+## Screenshot
 
-SerialFlash 提供多个互补的操作入口，可按习惯选用。
-
-### 侧边栏（Activity Bar Sidebar）
-
-点击 Activity Bar 的 SerialFlash 图标打开 **Flasher** 视图，分三组：
-
-- **Current** — 当前固件、串口、复位模式（含波特率 / 校验位摘要）。点击任意一项即可重新选择。
-- **Actions** — 常用动作快捷入口：Flash Latest Firmware、Open Flasher Panel、Select Project Profile、Show Output、Run Diagnostics。
-- **History** — 最近 8 条烧录记录，成功 / 失败带图标，悬停查看时间、端口、地址和字节数。
-
-视图标题栏的刷新按钮可手动刷新状态。
-
-### 烧录面板（Webview Panel）
-
-通过 **Open Flasher Panel** 命令或侧边栏打开，是功能最完整的图形界面：
-
-- 顶部状态条显示当前阶段和进度百分比（空闲 / 烧录中 / 完成 / 失败有不同指示）。
-- **烧录目标** 区集中确认固件、串口、复位三项，并提供「诊断」入口。
-- **执行** 区是主烧录按钮、进度条、取消，以及「进 Bootloader / 复位运行 / 输出」快捷动作；下方用 pill 显示擦除、校验、运行、关串口、解锁等开关状态。
-- 折叠区域可调整 **烧录参数**（波特率、地址、包大小、超时、校验位 + 写入选项）、**硬件复位**（custom 模式下的 DTR/RTS 映射）、**项目与自动化**（profile、项目配置、Tasks）、**维护与危险操作**（校验、擦除、解除读保护、关闭串口、清除记忆）。
-- 底部展示最近日志与历史记录；诊断和 Troubleshooting 仅在有内容时出现。
-- 烧录运行中会锁定配置和危险动作，只保留取消、输出和诊断。
-
-### 命令面板（Command Palette）
-
-所有命令以 `SerialFlash:` 前缀归类，按 `Cmd/Ctrl + Shift + P` 调用：
-
-| 命令 | 说明 |
-| --- | --- |
-| `Flash Latest Firmware` | 烧录当前固件（无固件时自动发现 / 选择）。快捷键 `Cmd/Ctrl + Alt + F` |
-| `Flash Current File` | 把当前编辑 / 右键的 `.hex`·`.bin` 设为固件并烧录 |
-| `Select Firmware` | 从工作区候选中选择固件 |
-| `Set as SerialFlash Firmware` | 仅把某文件设为当前固件，不烧录 |
-| `Show Firmware Info` | 显示固件格式、大小、base address 等信息 |
-| `Select Serial Port` | 选择串口（列表含 manufacturer、SN、VID/PID） |
-| `Select Reset Mode` | 选择复位时序预设 |
-| `Open Flasher Panel` | 打开图形烧录面板 |
-| `Reset To Bootloader` | 仅驱动复位时序进入 Bootloader |
-| `Reset And Run` | 复位并运行用户程序 |
-| `Cancel Flash` | 取消正在进行的烧录 |
-| `Show Output` | 打开 Output Channel 查看完整日志 |
-| `Run Diagnostics` | 输出 Extension Host、`serialport` 状态、可见串口 |
-| `Erase Chip` | 整片擦除（需确认） |
-| `Verify Firmware` | 读回校验当前固件 |
-| `Unlock Read Protection` | 解除读保护（会整片擦除，需确认） |
-| `Close Port` | 释放仍打开的串口 |
-| `Clear Remembered Device` | 清除记住的端口 / 固件 / 复位 / 波特率 |
-| `Create Project Config` | 把当前配置写入 `.vscode/settings.json` |
-| `Create Tasks` | 生成 `.vscode/tasks.json` 任务 |
-| `Create Project Profile` | 把当前配置保存为命名 profile |
-| `Select Project Profile` | 在多个 profile 间切换 |
-| `Clear Flash History` | 清空烧录历史 |
-
-### 文件右键菜单
-
-在 Explorer 或编辑器标签页右键 `.hex` / `.bin` 文件，可直接 **Flash Current File**、**Verify Firmware**、**Set as SerialFlash Firmware**、**Show Firmware Info**。
-
-### 状态栏
-
-状态栏左侧显示当前端口；烧录中显示阶段和进度，点击可打开面板或输出。
+![STM32 Serial Flasher panel in VS Code](docs/assets/vscode-panel.png)
 
 ---
 
-## 复位模式与硬件
+## Features
 
-进入 Bootloader 依赖正确的 DTR/RTS 时序。`serialFlash.resetMode` 可选：
-
-- `dtr-low-rts-high` — CH340C 经典自动下载电路（默认）。
-- `ch340x` — CH340X 直连电路。
-- `dtr-high-rts-low` — 通用预设（DTR 高复位 / RTS 低进 BOOT）。
-- `none` — 不驱动控制线，手动按键进入 Bootloader。
-- `custom` — 通过 `serialFlash.customReset.*` 自定义映射。
-
-硬件约定与注意事项：
-
-- 自定义映射时项目约定 `true` 为低电平、`false` 为高电平。
-- CH340C 与 CH340X 电路不要混用预设，时序不同会导致进不去 Bootloader。
-- macOS 端口排序优先 `/dev/tty.usbserial-*`，再考虑 `/dev/cu.usbserial-*`。
-- STM32 USART Bootloader 默认使用 `115200 8E1`。
-- 不确定该选哪个预设时，先用默认 `dtr-low-rts-high` 试；若一直超时，改用 `Reset To Bootloader` 配合手动按键确认接线，再逐个尝试其他预设。
-
-电路图、时序记录和排查经验见 [docs/CH340_HARDWARE.md](docs/CH340_HARDWARE.md)；协议包格式见 [docs/STM32_PROTOCOL.md](docs/STM32_PROTOCOL.md)。
+- **Auto-discover firmware** — scans the workspace for `.hex` / `.bin` files, ordered by modification time, path, and format. Single candidates are picked automatically.
+- **One-command flash** — bootloader → erase → write → verify → run, with a single keystroke (`Cmd/Ctrl+Alt+F`).
+- **Remembers your setup** — port, firmware, reset mode, and baud rate are persisted after the first successful flash.
+- **Multiple entry points** — Activity Bar sidebar, Webview panel, Command Palette, file context menu, status bar, and VS Code Tasks.
+- **Built-in CH340 presets** — cover common CH340C / CH340X auto-download circuits, with full custom DTR/RTS mapping.
+- **Diagnostics & troubleshooting** — on failure, the Output channel gives targeted advice for timeouts, NACK, port conflicts, permissions, and verification mismatches.
+- **Project profiles** — save named configurations for different targets and switch between them instantly.
+- **Flash history** — tracks recent operations with port, address, byte count, and result.
 
 ---
 
-## 项目配置、Profile 与任务
+## Requirements
 
-- **Create Project Config** 把当前配置写入工作区 `.vscode/settings.json`，保留已有 VS Code 设置。
-- **Create Project Profile** 把当前配置保存到 `serialFlash.projects`，适合一个工作区有多块板 / 多个固件；**Select Project Profile** 快速切换。
-- **Create Tasks** 写入 `.vscode/tasks.json`，生成 flash / bootloader / run 三个任务并保留已有任务。也可手动声明 `serialFlash` 类型任务：
+- **VS Code 1.90+** (Desktop).
+- An STM32 board with USART Bootloader connected via a USB-UART adapter (CH340, CP2102, etc.) recognized by your OS.
+- No extra tools or drivers beyond what your USB-UART adapter requires. The extension bundles `serialport`.
+
+> For Remote / Web limitations, see [Environment & Boundaries](#environment--boundaries).
+
+---
+
+## Quick Start
+
+1. Open your firmware project folder in VS Code (a workspace containing `.hex` or `.bin` build artifacts).
+2. Click the **SerialFlash** icon in the Activity Bar to open the sidebar.
+3. In the **Current** section, confirm three items:
+   - **Firmware** — leave blank for auto-discovery, or click to pick manually.
+   - **Port** — select your board's serial port (macOS: `/dev/tty.usbserial-*`, Windows: `COM3`).
+   - **Reset Mode** — choose a preset that matches your download circuit (the CH340C classic circuit default is `dtr-low-rts-high`).
+4. Run **Flash Latest Firmware** (sidebar button, Command Palette, or `Cmd/Ctrl+Alt+F`).
+5. Progress and logs appear in the flasher panel and Output channel. If it fails, check the Troubleshooting suggestions.
+
+After the first success, port / firmware / reset mode / baud rate are remembered — subsequent flashes are one click.
+
+---
+
+## Interface & Entry Points
+
+SerialFlash provides several complementary entry points. Use whichever fits your workflow.
+
+### Activity Bar Sidebar
+
+Click the SerialFlash icon to open the **Flasher** view, organized in three groups:
+
+- **Current** — selected firmware, port, and reset mode (with baud rate / parity summary). Click any item to change it.
+- **Actions** — quick shortcuts: Flash Latest Firmware, Open Flasher Panel, Select Project Profile, Show Output, Run Diagnostics.
+- **History** — last 8 flash records with success/failure icons. Hover for timestamp, port, address, and byte count.
+
+### Webview Panel
+
+Open via **Open Flasher Panel** or the sidebar. The most complete graphical interface:
+
+- **Status bar** at the top shows the current phase and progress percentage.
+- **Target** section — confirm firmware, port, and reset mode. Includes a diagnostics shortcut.
+- **Execution** section — main flash button, progress bar, cancel, plus quick actions (bootloader entry, reset & run, output). Toggle pills for erase, verify, run, close port, and unlock.
+- **Collapsible sections** for advanced settings:
+  - **Flash Parameters** — baud rate, address, packet size, timeout, parity, write options.
+  - **Hardware Reset** — custom DTR/RTS signal mapping.
+  - **Project & Automation** — profiles, project config, VS Code Tasks.
+  - **Maintenance & Danger Zone** — verify, erase chip, unlock read protection, close port, clear memory.
+- **Bottom area** — recent logs and history. Diagnostics and troubleshooting appear only when relevant.
+- During a flash, configuration and dangerous actions are locked; only cancel, output, and diagnostics remain available.
+
+### Command Palette
+
+All commands are prefixed `SerialFlash:` (`Cmd/Ctrl+Shift+P`):
+
+| Command | Description |
+| ------- | ----------- |
+| `Flash Latest Firmware` | Flash the current firmware (or auto-discover). Shortcut `Cmd/Ctrl+Alt+F` |
+| `Flash Current File` | Set the open/right-clicked `.hex`/`.bin` as firmware and flash it |
+| `Select Firmware` | Pick firmware from workspace candidates |
+| `Set as SerialFlash Firmware` | Set a file as current firmware without flashing |
+| `Show Firmware Info` | Show format, size, base address |
+| `Select Serial Port` | Pick a serial port (list includes manufacturer, SN, VID/PID) |
+| `Select Reset Mode` | Choose a DTR/RTS preset |
+| `Open Flasher Panel` | Open the graphical webview panel |
+| `Reset To Bootloader` | Drive the reset sequence to enter bootloader |
+| `Reset And Run` | Reset and run user firmware |
+| `Cancel Flash` | Cancel an in-progress flash |
+| `Show Output` | Open the Output channel with full logs |
+| `Run Diagnostics` | Show Extension Host, serialport status, and visible ports |
+| `Erase Chip` | Mass erase (confirmation required) |
+| `Verify Firmware` | Read back and verify current firmware |
+| `Unlock Read Protection` | Remove read protection (erases entire chip, confirmation required) |
+| `Close Port` | Release a still-open serial port |
+| `Clear Remembered Device` | Forget port / firmware / reset / baud rate |
+| `Create Project Config` | Write current config to `.vscode/settings.json` |
+| `Create Tasks` | Generate `.vscode/tasks.json` |
+| `Create Project Profile` | Save current config as a named profile |
+| `Select Project Profile` | Switch between saved profiles |
+| `Clear Flash History` | Clear flash history records |
+
+### File Context Menu
+
+Right-click a `.hex` or `.bin` file in Explorer or editor tab to: **Flash Current File**, **Verify Firmware**, **Set as SerialFlash Firmware**, **Show Firmware Info**.
+
+### Status Bar
+
+The status bar shows the current port. During a flash it shows phase and progress; click to open the panel or output.
+
+---
+
+## Reset Modes & Hardware
+
+Entering the bootloader requires the correct DTR/RTS sequence. `serialFlash.resetMode` options:
+
+- `dtr-low-rts-high` — CH340C classic auto-download circuit (default).
+- `ch340x` — CH340X direct-connect circuit.
+- `dtr-high-rts-low` — generic preset (DTR high = reset, RTS low = BOOT0).
+- `none` — no control-line manipulation; enter bootloader manually.
+- `custom` — fully custom mapping via `serialFlash.customReset.*`.
+
+Hardware notes:
+
+- The project convention: `true` = low level, `false` = high level.
+- Do not mix CH340C and CH340X presets — the timing sequences differ and the wrong one won't enter the bootloader.
+- On macOS, `/dev/tty.usbserial-*` is preferred over `/dev/cu.usbserial-*`.
+- STM32 USART Bootloader defaults to `115200 8E1`.
+- If unsure which preset to use, try the default `dtr-low-rts-high` first. If it keeps timing out, use `Reset To Bootloader` with the manual button to verify wiring, then try the other presets one by one.
+
+See [docs/CH340_HARDWARE.md](docs/CH340_HARDWARE.md) for circuit diagrams, timing records, and troubleshooting notes. See [docs/STM32_PROTOCOL.md](docs/STM32_PROTOCOL.md) for protocol packet format.
+
+---
+
+## Project Config, Profiles & Tasks
+
+- **Create Project Config** writes current settings to `.vscode/settings.json`, preserving existing VS Code settings.
+- **Create Project Profile** saves current config into `serialFlash.projects` — useful when a workspace targets multiple boards. **Select Project Profile** switches between them.
+- **Create Tasks** writes `.vscode/tasks.json` with `flash`, `bootloader`, and `run` tasks, preserving existing tasks. You can also declare tasks manually:
 
 ```json
 {
@@ -144,24 +171,24 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 }
 ```
 
-`action` 可选 `flashLatest`、`bootloader`、`run`。
+Valid `action` values: `flashLatest`, `bootloader`, `run`.
 
-> 以上写文件的命令需要先打开一个工作区文件夹。仅修改设置时若没有工作区，会自动写入用户全局设置。
+> The write-file commands above require an open workspace folder. If no workspace is open when only modifying settings, they fall back to user-level settings.
 
 ---
 
-## 配置参考
+## Configuration Reference
 
-烧录流程的四个写入开关（面板和配置中均可调整）：
+Four write-phase toggles (adjustable in both the panel and settings):
 
-| 选项 | 默认 | 作用 |
-| --- | --- | --- |
-| `eraseBeforeWrite` | 开 | 写入前整片擦除，避免残留旧程序 |
-| `verifyAfterWrite` | 开 | 写入后读回校验，较慢但能确认写入正确 |
-| `runAfterWrite` | 开 | 烧录成功后复位并运行用户程序 |
-| `closePortAfterWrite` | 开 | 完成后关闭串口；关掉它可让端口保持打开供调试 |
+| Option | Default | Effect |
+| ------ | ------- | ------ |
+| `eraseBeforeWrite` | on | Mass-erase before writing to avoid stale code |
+| `verifyAfterWrite` | on | Read back and verify after writing — slower but confirms correctness |
+| `runAfterWrite` | on | Reset and run user firmware after a successful flash |
+| `closePortAfterWrite` | on | Close the port after completion; turn off to keep it open for debugging |
 
-完整设置示例（可在工作区或用户设置中配置）：
+Full configuration example:
 
 ```json
 {
@@ -195,60 +222,70 @@ SerialFlash 提供多个互补的操作入口，可按习惯选用。
 }
 ```
 
-要点：
+Key points:
 
-- `serialFlash.flashAddress` 未显式配置时，HEX 固件优先使用文件内的 base address，BIN 固件默认 `0x08000000`。
-- `serialFlash.firmwareGlobs` / `serialFlash.excludeGlobs` 用于收窄固件扫描范围，避免工作区内多个产物互相干扰。
-- `serialFlash.unlockReadProtection` 仅在确认芯片处于读保护状态时开启，它会触发整片擦除。
-
----
-
-## 运行环境与边界
-
-- 完整支持 VS Code Desktop 本地 macOS / Windows / Linux。
-- Remote SSH / WSL / Dev Container 中只能访问 **Extension Host 实际运行端机器** 上的串口；激活时会提示当前 Extension Host，避免误选本机不存在的串口。
-- 不支持 vscode.dev / github.dev 烧录，因为 Web 扩展无法使用 Node `serialport`。
-- 同步 Bootloader 时会忽略进入 ACK 前的非 Bootloader 噪声字节，便于处理用户程序的残留输出。
+- When `serialFlash.flashAddress` is not set, HEX firmware uses the file's base address; BIN firmware defaults to `0x08000000`.
+- `serialFlash.firmwareGlobs` / `serialFlash.excludeGlobs` narrow firmware discovery to avoid interference from multiple build artifacts.
+- Enable `serialFlash.unlockReadProtection` only when you know the chip has read protection — it triggers a mass erase.
 
 ---
 
-## 常见问题排查
+## Environment & Boundaries
 
-烧录失败时，面板的 Troubleshooting 区和 Output 会给出具体建议。常见情况：
-
-| 现象 | 原因与处理 |
-| --- | --- |
-| 串口被占用 / busy / access denied | 关闭占用该串口的串口监视器、终端、其它烧录工具或上一轮未释放的连接 |
-| 权限不足 / EACCES / EPERM | 检查串口权限；Linux 通常需把当前用户加入 `dialout`（或 `uucp`）组后重新登录 |
-| 一直超时、收不到 Bootloader ACK | 确认 BOOT0/RESET 接线、复位模式、端口选择和 `115200 8E1`；可先用 `Reset To Bootloader` 或手动进入 Bootloader 验证，再换其他复位预设 |
-| 收到非 Bootloader 数据 | 目标可能仍在运行用户程序并输出串口数据，先确认已进入 ROM Bootloader |
-| 返回 NACK | 检查芯片读保护、flash 地址、擦除状态，以及该命令是否被当前 Bootloader 支持 |
-| 校验失败 | 确认固件对应当前板卡、`flashAddress` / HEX base address 正确，重新擦除后再烧录 |
-| 固件解析失败 | 重新构建或导出 `.hex` / `.bin`，确认文件不是日志、ELF 或被截断的产物 |
-| serialport 原生依赖不可用 | 重新安装依赖或用打包好的 VSIX 安装，并运行 `Run Diagnostics` |
-
-仍无法定位时，运行 `Run Diagnostics` 记录端口、复位模式、Bootloader 版本和 PID，便于进一步排查。
+- Full support for **VS Code Desktop** on macOS, Windows, and Linux.
+- **Remote SSH / WSL / Dev Containers** can only access ports on the machine where the Extension Host actually runs. On activation, a notification shows the current Extension Host to avoid confusion.
+- **vscode.dev / github.dev** are not supported — Web extensions cannot use Node `serialport`.
+- When synchronizing with the bootloader, noise bytes from user-program output are ignored before ACK is received.
 
 ---
 
-## 开发
+## Troubleshooting
+
+When a flash fails, the panel's Troubleshooting section and Output channel give specific advice. Common situations:
+
+| Symptom | Cause & Fix |
+| ------- | ----------- |
+| Port busy / access denied | Another serial monitor, terminal, flasher, or a previous connection is holding the port. Close it or use `Close Port`. |
+| Permission denied (EACCES / EPERM) | Check port permissions. On Linux, add your user to the `dialout` (or `uucp`) group and re-login. |
+| Timeout, no Bootloader ACK | Verify BOOT0/RESET wiring, reset mode, port selection, and `115200 8E1`. Try `Reset To Bootloader` or manual bootloader entry first, then swap presets. |
+| Non-bootloader data received | The target may still be running user code and outputting serial data. Confirm bootloader entry first. |
+| NACK returned | Check read protection, flash address, erase state, and whether the command is supported by your bootloader version. |
+| Verification failed | Confirm the firmware matches the target board, `flashAddress` / HEX base address is correct, re-erase and re-flash. |
+| Firmware parse failure | Rebuild or re-export `.hex` / `.bin`. Confirm the file is not a log, ELF, or truncated build artifact. |
+| serialport native dependency unavailable | Reinstall dependencies or install from the packaged VSIX, then run `Run Diagnostics`. |
+
+If still stuck, run `Run Diagnostics` to capture port, reset mode, bootloader version, and PID for further investigation.
+
+---
+
+## Development
 
 ```bash
 npm install
 npm test
+npm run package
 ```
 
-在 VS Code 中打开本仓库，使用 Extension Development Host（F5）调试插件。核心 STM32 UART ISP 逻辑位于 `src/core` 与 `src/stm32.js`，VS Code 集成位于 `src/vscode`。架构与约定见 [AGENTS.md](AGENTS.md)。
+Open this repo in VS Code and use the Extension Development Host (F5) to debug. Core STM32 UART ISP logic lives in `src/core` and `src/stm32.js`; VS Code integration is in `src/vscode`. See [AGENTS.md](AGENTS.md) for architecture and conventions.
 
-### 打包
+### Packaging
 
 ```bash
-npm_config_cache=/private/tmp/npm-cache npx --yes @vscode/vsce package \
-  --out /private/tmp/serialflash-stm32.vsix
+npm run package
 ```
 
-生成的 VSIX 会包含生产依赖 `serialport`。实机验证记录模板见 [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md)。
+The generated VSIX includes the `serialport` production dependency. See [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md) for the hardware validation record template.
 
-## 许可证
+### Publishing
 
-MIT
+Before publishing, make sure `CHANGELOG.md` is up to date and both `npm test` and `npm run package` pass. Then, logged in as the publisher:
+
+```bash
+npm run publish
+```
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
