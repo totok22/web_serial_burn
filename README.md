@@ -1,65 +1,93 @@
 # SerialFlash
 
-基于 Web Serial 和 STM32 USART Bootloader 的浏览器烧写工具，同时提供 Node.js CLI 便于硬件验证和自动化烧写。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 功能
+A browser-based STM32 flashing tool using Web Serial and the STM32 USART Bootloader. Also includes a Node.js CLI for hardware validation and automated flashing. No ST-Link, no software install — just a browser (or terminal) and a USB-UART adapter.
 
-- STM32 UART ISP 自动进 Bootloader、擦除、写入、校验和运行。
-- 支持 `.bin` 和 Intel HEX `.hex` 固件。
-- 内置 CH340C 经典电路、CH340X 直连电路和常见 DTR/RTS 组合预设。
-- 支持读保护解除、烧写后运行、完成后关闭串口。
-- 明暗主题切换和中英文切换。
-- 提供 Web UI 和 CLI 两种入口。
+> **中文用户**: 请参阅 [README.zh-CN.md](README.zh-CN.md)
 
-## 浏览器使用
+---
 
-Web Serial 需要 Chrome/Edge，并通过 HTTPS 或 localhost 打开页面。
+## Which Version Do You Need?
+
+This project has **two branches** for different workflows:
+
+| Branch | Description | Best For |
+| ------ | ----------- | -------- |
+| [`main`](https://github.com/totok22/SerialFlash/tree/main) (you are here) | **Web Serial + CLI** — open a browser tab or use the terminal | Quick flashing without VS Code; CI/automation; any platform with a browser |
+| [`vscode-extension`](https://github.com/totok22/SerialFlash/tree/vscode-extension) | **VS Code extension** — install from marketplace, flash from the editor | VS Code users who want an integrated, one-click workflow |
+
+Both branches share the same STM32 UART ISP core, DTR/RTS reset presets, and firmware parsing logic. Pick the one that fits your setup.
+
+---
+
+## Screenshot
+
+![SerialFlash Web UI](docs/assets/web-ui.png)
+
+---
+
+## Features
+
+- **STM32 UART ISP** — auto bootloader entry, erase, write, verify, and run.
+- **Supports `.bin` and Intel HEX `.hex`** firmware files.
+- **Built-in CH340 presets** — CH340C classic circuit, CH340X direct-connect circuit, and common DTR/RTS combinations.
+- **Read protection unlock**, post-flash run, and auto-close port.
+- **Light/dark theme** and **English/Chinese** language toggle.
+- **Two interfaces** — Web UI and Node.js CLI.
+
+---
+
+## Browser Usage (Web Serial)
+
+Web Serial requires **Chrome or Edge** (or any Chromium-based browser) and must be served over HTTPS or `localhost`.
+
+### Quick Start
+
+Start a local server:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-打开：
+Then open:
 
-```text
+```
 http://127.0.0.1:8080/index.html
 ```
 
-macOS 可双击：
+Or use the platform launchers:
 
-```text
-start.command
-```
+- **macOS** — double-click `start.command`
+- **Windows** — double-click `start.bat`
 
-Windows 可双击：
+### Workflow
 
-```text
-start.bat
-```
+1. Click **"Select & Open Port"** to authorize and open the serial port.
+2. Select a `.bin` or `.hex` firmware file.
+3. Choose a DTR/RTS reset mode. Common presets are **CH340C Classic Circuit** and **CH340X Direct-Connect**.
+4. Optionally toggle erase, full verify, run, and close-port.
+5. Click **"Start Programming"**.
 
-使用流程：
+Progress, phase, and logs are shown in real time. Theme and language can be toggled from the top bar.
 
-1. 点击“选择并开启串口”，授权并打开串口。
-2. 选择 `.bin` 或 `.hex` 固件。
-3. 选择 DTR/RTS 复位模式，常用预设为 `CH340C 经典电路` 和 `CH340X 直连电路`。
-4. 按需设置擦除、完整校验、运行和关闭串口。
-5. 点击“开始编程”。
+---
 
-## CLI 使用
+## CLI Usage
 
-安装依赖：
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-查看参数：
+View options:
 
 ```bash
 node src/cli.js --help
 ```
 
-示例：
+Example:
 
 ```bash
 node src/cli.js \
@@ -70,35 +98,78 @@ node src/cli.js \
   --unlock
 ```
 
-macOS CH340 通常同时存在 `/dev/cu.*` 和 `/dev/tty.*`。自动 DTR/RTS 进 Bootloader 时优先使用 `/dev/tty.usbserial-*`。
+**macOS**: CH340 adapters typically show up as both `/dev/cu.*` and `/dev/tty.*`. Prefer `/dev/tty.usbserial-*` for automatic DTR/RTS bootloader entry.
 
-Windows 串口端口通常为 `COM3`、`COM4` 等：
+**Windows**: Serial ports are typically `COM3`, `COM4`, etc.:
 
 ```bash
 node src/cli.js --port COM3 --file firmware.hex --reset ch340x --timeout 3000 --unlock
 ```
 
-## 硬件预设
+---
 
-项目内部统一约定：
+## Hardware Presets
 
-- `true` 表示低电平。
-- `false` 表示高电平。
+Project-wide conventions:
 
-Node `serialport` 的 modem 线布尔语义与项目约定相反，适配层会自动取反；Web Serial 路径单独处理浏览器侧行为。
+- `true` = low level, `false` = high level.
+- Node `serialport` modem-line boolean semantics are inverted relative to the project convention — the adapter layer (`src/node-serial-transport.js`) handles negation automatically. The Web Serial path handles browser-side behavior separately.
 
-硬件电路、时序记录和排查经验见 [docs/CH340_HARDWARE.md](docs/CH340_HARDWARE.md)。
-协议包格式见 [docs/STM32_PROTOCOL.md](docs/STM32_PROTOCOL.md)。
+Reset mode presets available:
 
-## 开发
+| Preset | Circuit |
+| ------ | ------- |
+| `ch340c` | CH340C classic auto-download circuit (DTR low, RTS high) |
+| `ch340x` | CH340X direct-connect circuit |
+| `dtr-high-rts-low` | Generic — DTR high = reset, RTS low = BOOT0 |
+| `none` | No control-line manipulation; manual bootloader entry |
+
+For circuit diagrams, timing records, and troubleshooting notes, see [docs/CH340_HARDWARE.md](docs/CH340_HARDWARE.md). For protocol packet format, see [docs/STM32_PROTOCOL.md](docs/STM32_PROTOCOL.md).
+
+---
+
+## Configuration
+
+| Option | CLI flag | Default | Description |
+| ------ | -------- | ------- | ----------- |
+| Port | `--port` | — | Serial port path (required) |
+| Firmware | `--file` | — | `.hex` or `.bin` firmware path (required) |
+| Baud rate | `--baud` | `115200` | USART baud rate |
+| Reset mode | `--reset` | `ch340c` | DTR/RTS preset |
+| Timeout | `--timeout` | `2000` | Read timeout in ms |
+| No erase | `--no-erase` | `false` | Skip mass erase before write |
+| No verify | `--no-verify` | `false` | Skip read-back verification |
+| No run | `--no-run` | `false` | Don't reset and run after flash |
+| No close | `--no-close` | `false` | Leave port open after flash |
+| Unlock | `--unlock` | `false` | Attempt readout unprotect (erases chip) |
+
+---
+
+## Development
 
 ```bash
+npm install
 npm test
+
+# Web UI
+python3 -m http.server 8080
+
+# CLI
 node src/cli.js --help
 ```
 
-## 已知限制
+The core STM32 UART ISP logic is in `src/stm32.js` and `src/firmware.js`. Transport adapters are in `src/serial-transport.js` (Web Serial) and `src/node-serial-transport.js` (Node `serialport`). See [AGENTS.md](AGENTS.md) for architecture and conventions.
 
-- Web Serial 必须由用户点击触发串口授权。
-- 当前自动流程只实现 STM32 USART Bootloader。
-- 不同下载板的 DTR/RTS 极性差异较大，新增板型前应先用 CLI 或 Web 预设组合验证。
+---
+
+## Known Limitations
+
+- **Web Serial requires a user click** to trigger port authorization — browser security policy.
+- **STM32 USART Bootloader only** — other protocols (SWD, DFU, etc.) are not currently supported.
+- **DTR/RTS polarity varies** across download boards. When adding a new board, validate with CLI or Web presets first before relying on auto-entry.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
