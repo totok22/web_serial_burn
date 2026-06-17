@@ -1,10 +1,23 @@
 {
   "name": "serialflash-stm32",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "VS Code extension for flashing STM32 firmware through the USART bootloader.",
   "displayName": "STM32 Serial Flasher",
   "publisher": "totok22",
   "icon": "src/vscode/media/icon.png",
+  "keywords": [
+    "stm32",
+    "serial",
+    "uart",
+    "bootloader",
+    "firmware",
+    "flash",
+    "ch340"
+  ],
+  "galleryBanner": {
+    "color": "#1f2937",
+    "theme": "dark"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -487,7 +500,9 @@
     }
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "package": "npx --yes @vscode/vsce package",
+    "publish": "npx --yes @vscode/vsce publish"
   },
   "dependencies": {
     "serialport": "^13.0.0"
